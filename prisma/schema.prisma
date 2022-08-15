@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+  output = "../node_modules/.prisma/client" 
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model buyers {
+  pk_buyer_id         Int      @id @default(autoincrement())
+  buyer_email         String   @unique @db.VarChar(50)
+  password            String   @db.VarChar
+  buyer_nickname      String   @unique @db.VarChar(20)
+  buyer_street_name   String?  @db.VarChar(30)
+  buyer_street_number Int?
+  buyer_zip_code      String?  @db.VarChar(10)
+  buyer_city          String?  @db.VarChar(20)
+  orders              orders[]
+}
+
+model dishes {
+  pk_dish_id         Int          @id @default(autoincrement())
+  dish_name          String       @db.VarChar(50)
+  description        String       @db.VarChar(100)
+  price              Decimal      @db.Money
+  quantity_available Int?
+  dish_photo_url     String?      @db.VarChar
+  fk_seller_id       Int          @default(autoincrement())
+  sellers            sellers      @relation(fields: [fk_seller_id], references: [pk_seller_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_seller_id")
+  order_dish         order_dish[]
+}
+
+model order_dish {
+  pk_od_id    Int    @id @default(autoincrement())
+  fk_order_id Int    @default(autoincrement())
+  fk_dish_id  Int    @default(autoincrement())
+  quantity    Int?
+  dishes      dishes @relation(fields: [fk_dish_id], references: [pk_dish_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_dish_id")
+  orders      orders @relation(fields: [fk_order_id], references: [pk_order_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_order_id")
+}
+
+model orders {
+  pk_order_id  Int          @id @default(autoincrement())
+  fk_seller_id Int          @default(autoincrement())
+  fk_buyer_id  Int          @default(autoincrement())
+  fulfilled    Boolean?
+  order_date   DateTime?    @db.Date
+  total        Int?
+  buyers       buyers       @relation(fields: [fk_buyer_id], references: [pk_buyer_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_buyer_id")
+  sellers      sellers      @relation(fields: [fk_seller_id], references: [pk_seller_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_seller_id")
+  order_dish   order_dish[]
+}
+
+model sellers {
+  pk_seller_id         Int       @id @default(autoincrement())
+  seller_email         String    @unique @db.VarChar(50)
+  password             String    @db.VarChar
+  seller_nickname      String    @unique @db.VarChar(20)
+  seller_bio           String?   @db.VarChar(50)
+  kitchen_name         String?   @unique @db.VarChar(30)
+  pickup_window_start  DateTime? @db.Time(6)
+  pickup_window_end    DateTime? @db.Time(6)
+  seller_street_name   String?   @db.VarChar(50)
+  seller_city          String?   @db.VarChar(20)
+  seller_zip_code      String?   @db.VarChar(10)
+  cuisine              String?   @db.VarChar
+  market_enabled       Boolean?
+  seller_state         String?   @db.VarChar(20)
+  seller_img           String?   @db.VarChar
+  seller_name          String?   @db.VarChar
+  seller_street_number String?   @db.VarChar(20)
+  dishes               dishes[]
+  orders               orders[]
+}
