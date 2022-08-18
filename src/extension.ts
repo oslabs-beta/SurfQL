@@ -25,6 +25,24 @@ export function activate(context: vscode.ExtensionContext) {
 
 	//let's do a poptup for preview Schema
 	let previewSchema = vscode.commands.registerCommand('surfql.previewSchema', async () => {
+		//Prompt user to select Schema file
+		let schemaFilePath = '';
+
+		const options: vscode.OpenDialogOptions = {
+			canSelectMany: false,
+			openLabel: 'Open',
+			filters: {
+				'graphqls files': ['graphql', 'graphqls', 'ts', 'js']
+			}
+		};
+
+		await vscode.window.showOpenDialog(options).then(fileUri => {
+			console.log('file Uri -> ', fileUri);
+			if (fileUri && fileUri[0]) {
+				schemaFilePath = fileUri[0].fsPath;
+			}
+		});
+
 		//create a newpanel in webView
 		const panel = vscode.window.createWebviewPanel(
 			"Preview Schema", //viewType, internal use
@@ -36,16 +54,31 @@ export function activate(context: vscode.ExtensionContext) {
 		);
 
 		
-		
 		// Get path to the preview.js script on disk
 		const onDiskPath = vscode.Uri.file(
 			path.join(context.extensionPath,'scripts', 'preview.js')
 		);
+		
+
+		console.log('on disk path', onDiskPath);
 		//add the previewjs to panel as a accessible Uri
 		const scriptSrc = panel.webview.asWebviewUri(onDiskPath);
 			
 		//Add html content//
 		panel.webview.html = getWebViewContent(scriptSrc.toString());
+
+		//add event listener to webview
+		panel.webview.onDidReceiveMessage(message => {
+			console.log('message1', message);
+			if (message.command === 'get schema text') {
+				let schemaText = fs.readFileSync(schemaFilePath, 'utf8');
+				panel.webview.postMessage({
+					command: 'sendText',
+					text: schemaText
+				});
+			};
+			return;
+		});
 	});
 
 }
@@ -63,6 +96,17 @@ const getWebViewContent = (scriptSrc: String) => {
 					<body>
 						<h1>Schema Name</h1>
 						<div id='board'>Build a Nice Tree Structure</div>
+						<script>
+							document.addEventListener('DOMcontentLoaded', () => {
+								const vscode = acquireVsCodeApi();
+								function getSchematext() {
+									vscode.postMessage({
+										command: 'get schema text'
+									})
+								}
+								getSchematext();
+							})
+						</script>
 					</body>
 				</html>`;
 
