@@ -17,7 +17,17 @@ interface PokeQuery {
 
 	}
 }
+
+
 export function activate(context: vscode.ExtensionContext) {
+
+	//this function accepts the name of the level that's being clicked and suggests the next level
+	let levelChecker = vscode.commands.registerCommand('surfql.levelChecker', async (queryText) => {
+		console.log(queryText)
+		queryLevel = queryText
+	});
+
+	
 
 	//each provider is a set of rules, for what needs to be typed and what will be suggested
 
@@ -96,8 +106,6 @@ export function activate(context: vscode.ExtensionContext) {
 						works: true
 					}
 				}
-	
-
 				//Initial activation should be via back tick, but ALL further queries should NOT be using this
 				const linePrefix = document.lineAt(position).text.substr(0, position.character);
 				if (!linePrefix.includes("`")) {
@@ -113,7 +121,9 @@ export function activate(context: vscode.ExtensionContext) {
 				let suggestions: Array<any> = []
 
 				objArr.forEach(e => {
-					suggestions.push(new vscode.CompletionItem(e + ": {", vscode.CompletionItemKind.Method))
+					let tempCompItem = new vscode.CompletionItem(e + ": {", vscode.CompletionItemKind.Keyword)
+					tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
+					suggestions.push(tempCompItem)
 					console.log(suggestions)
 					queryIntiate = false
 					queryLevel = e // == "pokemon"	
@@ -121,12 +131,14 @@ export function activate(context: vscode.ExtensionContext) {
 				})
 				return suggestions;
 				} else {
+
+					//need to figure out way to keep going down the branch past level 2
 					let objArr = Object.keys(pokeQuery[queryLevel])
 
 					let suggestions: Array<any> = []
 
 				objArr.forEach(e => {
-					suggestions.push(new vscode.CompletionItem(e + ": {", vscode.CompletionItemKind.Method))
+					suggestions.push(new vscode.CompletionItem(e + ": {", vscode.CompletionItemKind.Keyword))
 					console.log(suggestions)
 					queryIntiate = false
 					queryLevel = e 
@@ -146,7 +158,7 @@ export function activate(context: vscode.ExtensionContext) {
 		'`' // triggered whenever a backtick is being typed
 	);
 
-	context.subscriptions.push(provider1, provider2);
+	context.subscriptions.push(provider1, provider2, levelChecker);
 
 	//let's do a poptup for preview Schema
 	let previewSchema = vscode.commands.registerCommand('surfql.previewSchema', async () => {
