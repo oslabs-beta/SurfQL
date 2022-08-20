@@ -87,6 +87,12 @@ export function activate(context: vscode.ExtensionContext) {
 						name: "Pikachu",
 						type: "Electric",
 						moves: "Tackle"
+					},
+					test2: {
+						tester: 'test',
+					},
+					test3: {
+						works: true
 					}
 				}
 	
@@ -97,6 +103,9 @@ export function activate(context: vscode.ExtensionContext) {
 					return undefined;
 				}
 
+				function setLevel(e: any) {
+					console.log('the function has been activated and the level is ', e)
+				}
 
 				if (queryIntiate == true) {
 					let objArr = Object.keys(pokeQuery)
