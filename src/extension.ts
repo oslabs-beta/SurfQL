@@ -4,6 +4,8 @@
 
 import { type } from 'os';
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
 
 let queryIntiate = true
 let queryLevel : any
@@ -76,7 +78,6 @@ export function activate(context: vscode.ExtensionContext) {
 			];
 		}
 	});
-
 	const provider2 = vscode.languages.registerCompletionItemProvider(
 		'javascript',
 		{
@@ -146,4 +147,95 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 
 	context.subscriptions.push(provider1, provider2);
+
+	//let's do a poptup for preview Schema
+	let previewSchema = vscode.commands.registerCommand('surfql.previewSchema', async () => {
+		//Prompt user to select Schema file
+		let schemaFilePath = '';
+
+		const options: vscode.OpenDialogOptions = {
+			canSelectMany: false,
+			openLabel: 'Open',
+			filters: {
+				'graphqls files': ['graphql', 'graphqls', 'ts', 'js']
+			}
+		};
+
+		await vscode.window.showOpenDialog(options).then(fileUri => {
+			console.log('file Uri -> ', fileUri);
+			if (fileUri && fileUri[0]) {
+				schemaFilePath = fileUri[0].fsPath;
+			}
+		});
+
+		//create a newpanel in webView
+		const panel = vscode.window.createWebviewPanel(
+			"Preview Schema", //viewType, internal use
+			"Schema Preview", //Preview title in the tag
+			vscode.ViewColumn.Beside, //where the new panel shows
+			{
+				enableScripts: true
+			} //option to add scripts
+		);
+
+		
+		// Get path to the preview.js script on disk
+		const onDiskPath = vscode.Uri.file(
+			path.join(context.extensionPath,'scripts', 'preview.js')
+		);
+		
+
+		console.log('on disk path', onDiskPath);
+		//add the previewjs to panel as a accessible Uri
+		const scriptSrc = panel.webview.asWebviewUri(onDiskPath);
+			
+		//Add html content//
+		panel.webview.html = getWebViewContent(scriptSrc.toString());
+
+		//add event listener to webview
+		panel.webview.onDidReceiveMessage(message => {
+			console.log('message1', message);
+			if (message.command === 'get schema text') {
+				let schemaText = fs.readFileSync(schemaFilePath, 'utf8');
+				panel.webview.postMessage({
+					command: 'sendText',
+					text: schemaText
+				});
+			};
+			return;
+		});
+	});
+
 }
+
+//Initial preview html content
+const getWebViewContent = (scriptSrc: String) => {
+	return `<!DOCTYPE html>
+				<html lang="en">
+					<head>
+						<meta charset="UTF-8">
+						<meta name="viewport" content="width=device-width, initial-scale=1.0">
+						<title>PreviewSchema</title>
+						<script type="text/javascript" src="${ scriptSrc }"></script>
+					</head>
+					<body>
+						<h1>Schema Name</h1>
+						<div id='board'>Build a Nice Tree Structure</div>
+						<script>
+							document.addEventListener('DOMcontentLoaded', () => {
+								const vscode = acquireVsCodeApi();
+								function getSchematext() {
+									vscode.postMessage({
+										command: 'get schema text'
+									})
+								}
+								getSchematext();
+							})
+						</script>
+					</body>
+				</html>`;
+
+};
+
+// this method is called when your extension is deactivated
+export function deactivate() {}
