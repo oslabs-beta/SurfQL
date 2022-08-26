@@ -7,8 +7,8 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 
-let queryIntiate = true
-let queryLevel : any
+let queryIntiate = true;
+let queryLevel : any;
 interface PokeQuery {
 	pokemon: {
 		name:string,
@@ -18,6 +18,34 @@ interface PokeQuery {
 	}
 }
 
+	//Suggestion: how do we suggest multiple
+	const pokeQuery: any = {
+		pokemon: {
+			name: "Pikachu",
+			type: {
+				electric: {
+					shocking: true,
+					treasureChest: {
+						treasure: 'yarr'
+					}
+				},
+				water: false
+			},
+			moves: "Tackle"
+		},
+		test2: {
+			tester: 'test',
+		},
+		test3: {
+			works: true
+		}
+	}
+
+
+let history: any[] = [];
+let level = 0
+
+let characters: string[] = ['`','{']
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -31,7 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	//each provider is a set of rules, for what needs to be typed and what will be suggested
 
-	const provider1 = vscode.languages.registerCompletionItemProvider('javascript', {
+	const provider1: vscode.Disposable = vscode.languages.registerCompletionItemProvider('javascript', {
 
 		provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext) {
 
@@ -88,24 +116,12 @@ export function activate(context: vscode.ExtensionContext) {
 			];
 		}
 	});
-	const provider2 = vscode.languages.registerCompletionItemProvider(
+	let provider2: vscode.Disposable = vscode.languages.registerCompletionItemProvider(
 		'javascript',
 		{
 			provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
-
-				const pokeQuery: any = {
-					pokemon: {
-						name: "Pikachu",
-						type: "Electric",
-						moves: "Tackle"
-					},
-					test2: {
-						tester: 'test',
-					},
-					test3: {
-						works: true
-					}
-				}
+				
+			
 				//Initial activation should be via back tick, but ALL further queries should NOT be using this
 				const linePrefix = document.lineAt(position).text.substr(0, position.character);
 				if (!linePrefix.includes("`")) {
@@ -116,50 +132,49 @@ export function activate(context: vscode.ExtensionContext) {
 					console.log('the function has been activated and the level is ', e)
 				}
 
-				if (queryIntiate == true) {
-					let objArr = Object.keys(pokeQuery)
-				let suggestions: Array<any> = []
+        const suggestions: Array<any> = [];
+				if (queryIntiate === true) {
+					let objArr = Object.keys(pokeQuery);
 
-				objArr.forEach(e => {
-					let tempCompItem = new vscode.CompletionItem(e + ": {", vscode.CompletionItemKind.Keyword)
-					tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
-					suggestions.push(tempCompItem)
-					console.log(suggestions)
-					queryIntiate = false
-					queryLevel = e // == "pokemon"	
+					objArr.forEach(e => {
+						let tempCompItem = new vscode.CompletionItem(e + ": ", vscode.CompletionItemKind.Keyword);
+						tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
+						suggestions.push(tempCompItem);
+						//console.log(suggestions)
+						queryLevel = e; // == "pokemon"	
+					});
+					level++;
+          			queryIntiate = false;
 					
-				})
-				return suggestions;
-				} else {
-
-					//need to figure out way to keep going down the branch past level 2
-					let objArr = Object.keys(pokeQuery[queryLevel])
-
-					let suggestions: Array<any> = []
-
-				objArr.forEach(e => {
-					suggestions.push(new vscode.CompletionItem(e + ": {", vscode.CompletionItemKind.Keyword))
-					console.log(suggestions)
-					queryIntiate = false
-					queryLevel = e 
-
-					
-					
-				})
-
-				return suggestions;
+			  } 
+				else {
+					history.push(queryLevel);
+						console.log('we are on level', level);
+						let objArr = traverseObject(pokeQuery,history);
+						
+					objArr.forEach(e => {
+						let tempCompItem = new vscode.CompletionItem(e + ": ", vscode.CompletionItemKind.Keyword);
+						tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
+						suggestions.push(tempCompItem);
+						
+						//console.log(suggestions);
+						queryIntiate = false;
+						queryLevel = e ;
+					});
+					level++;
 				}
-
-				
-
-				
+				return suggestions;
 			}
 		},
-		'`' // triggered whenever a backtick is being typed
+		...characters // triggered whenever a backtick is being typed
 	);
 
 	context.subscriptions.push(provider1, provider2, levelChecker);
 
+
+	//
+	///////////////////////////////////////
+	//////////////////////////////////////
 	//let's do a poptup for preview Schema
 	let previewSchema = vscode.commands.registerCommand('surfql.previewSchema', async () => {
 		//Prompt user to select Schema file
@@ -251,3 +266,18 @@ const getWebViewContent = (scriptSrc: String) => {
 
 // this method is called when your extension is deactivated
 export function deactivate() {}
+
+// Traverse to the current part of the object based on the history
+function traverseObject(obj: any, history: string[]): string[] {
+	// If our obj isn't an object we have hit the end of our traversal
+	if (typeof obj !== 'object') {
+		console.log('youve reached the end of the object!');
+		return [];
+	}
+	// If we have hit the end of our history return the nested object keys
+  else if (history.length === 0) {
+		return Object.keys(obj);
+	}
+	// Traverse until and end is reached
+  return traverseObject(obj[history[0]], history.slice(1));
+};
