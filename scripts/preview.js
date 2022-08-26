@@ -108,14 +108,22 @@ function draw(array) {
             const root = e.target;
             const fields = JSON.parse(root.dataset.fields);
             const block = root.parentNode;
-            console.log('field parsed back ->', fields);
-            for (const x in fields) {
-                const field = document.createElement('button');
-                //add class to the button
-                field.setAttribute("class", "fieldType");
-                field.innerHTML = `${x}`;
-                block.appendChild(field);
-            };
+            const children = block.childNodes;
+            if (children.length > 1) {
+                //remove all of them
+                while(children.length > 1) {
+                    block.removeChild(children[1]);
+                }
+            } else {
+                //add field to the block.
+                for (const x in fields) {
+                    const field = document.createElement('button');
+                    //add class to the button
+                    field.setAttribute("class", "fieldType");
+                    field.innerHTML = `${x}`;
+                    block.appendChild(field);
+                };
+            }
         };
         board.appendChild(block);
     });

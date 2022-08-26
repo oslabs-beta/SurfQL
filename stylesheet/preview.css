@@ -15,6 +15,13 @@
     border-radius: 10;
     height: 15px;
     width: 50px;
+    margin-right: 10px;
     font-size: 12px;
+    font-weight: 500;
+    color: #fff;
+    cursor: pointer;
+    background-image: linear-gradient(to right,#e052a0,#f15c41)!important;
+    padding: 16px 18px 15px;
+
 }
 
