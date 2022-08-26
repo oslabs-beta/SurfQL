@@ -24,10 +24,10 @@ window.addEventListener('message', event => {
     console.log(text);
     //call parser
     if (message.command === 'sendText') {
-        const schemaObj = parser(text);
-        console.log(schemaObj);
+        const schemaArr = parser(text);
+        console.log(schemaArr);
         //TODO: use schemaObj to create DOM elements
-        draw(schemaObj);
+        draw(schemaArr);
         return;
     }
 });
@@ -95,13 +95,27 @@ function fieldBuilder(string) {
 function draw(array) {
     array.forEach(el => {
         const block = document.createElement('div');
-        const root = document.createElement('h4');
+        //create a button, add onclick, when it is clicked, we create children button for each of the key-value pair in el.fields.
+        const root = document.createElement('botton');
+        //TODO: add class to the button
+        root.setAttribute("class", "queryType");
         root.innerHTML = el.name;
+        root.setAttribute("data-fields", JSON.stringify(el.fields));
+        
         block.appendChild(root);
-        for (const x in el.fields) {
-            const field = document.createElement('li');
-            field.innerHTML = `${x} : ${el.fields[x]}`;
-            block.appendChild(field);
+        // vanilla dom to add Onclick
+        root.onclick = function (e) {
+            const root = e.target;
+            const fields = JSON.parse(root.dataset.fields);
+            const block = root.parentNode;
+            console.log('field parsed back ->', fields);
+            for (const x in fields) {
+                const field = document.createElement('button');
+                //add class to the button
+                field.setAttribute("class", "fieldType");
+                field.innerHTML = `${x}`;
+                block.appendChild(field);
+            };
         };
         board.appendChild(block);
     });

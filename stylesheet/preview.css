@@ -1,0 +1,20 @@
+#board {
+    border: 2px solid white
+};
+
+
+.fieldType {
+    border: 1px dashed white;
+    border-radius: 10;
+    height: 10px;
+    width: 30px;
+}
+
+.queryType {
+    border: 1px solid white;
+    border-radius: 10;
+    height: 15px;
+    width: 50px;
+    font-size: 12px;
+}
+

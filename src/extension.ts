@@ -21,7 +21,7 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.showInformationMessage('Hello World from SurfQL!');
 	});
 
-	context.subscriptions.push(disposable);
+	
 
 	//let's do a poptup for preview Schema
 	let previewSchema = vscode.commands.registerCommand('surfql.previewSchema', async () => {
@@ -58,14 +58,22 @@ export function activate(context: vscode.ExtensionContext) {
 		const onDiskPath = vscode.Uri.file(
 			path.join(context.extensionPath,'scripts', 'preview.js')
 		);
+
+		//toDo add stylesheet.
+		const styleSheetPath = vscode.Uri.file(
+			path.join(context.extensionPath,'stylesheet', 'preview.css')
+		);
+
+
 		
 
 		console.log('on disk path', onDiskPath);
 		//add the previewjs to panel as a accessible Uri
 		const scriptSrc = panel.webview.asWebviewUri(onDiskPath);
+		const styleSrc = panel.webview.asWebviewUri(styleSheetPath);
 			
 		//Add html content//
-		panel.webview.html = getWebViewContent(scriptSrc.toString());
+		panel.webview.html = getWebViewContent(scriptSrc.toString(), styleSrc.toString());
 
 		//add event listener to webview
 		panel.webview.onDidReceiveMessage(message => {
@@ -81,10 +89,12 @@ export function activate(context: vscode.ExtensionContext) {
 		});
 	});
 
+	context.subscriptions.push(disposable, previewSchema);
+
 }
 
 //Initial preview html content
-const getWebViewContent = (scriptSrc: String) => {
+const getWebViewContent = (scriptSrc: String, styleSrc: String) => {
 	return `<!DOCTYPE html>
 				<html lang="en">
 					<head>
@@ -92,6 +102,7 @@ const getWebViewContent = (scriptSrc: String) => {
 						<meta name="viewport" content="width=device-width, initial-scale=1.0">
 						<title>PreviewSchema</title>
 						<script type="text/javascript" src="${ scriptSrc }"></script>
+						<link rel="stylesheet" href="${ styleSrc }" />
 					</head>
 					<body>
 						<h1>Schema Name</h1>
