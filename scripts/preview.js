@@ -147,7 +147,7 @@ function draw(array) {
       const childLi = document.createElement("li");
       const btn = document.createElement("button");
       childLi.setAttribute("class", "fieldType-alt");
-      btn.textContent = `${field}`;
+      btn.textContent = `${field}:${root.fields[field]}`;
       //append to list item
       childLi.appendChild(btn);
       childUl.appendChild(childLi);
