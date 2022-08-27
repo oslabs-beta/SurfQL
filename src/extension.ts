@@ -18,6 +18,8 @@ interface PokeQuery {
 	}
 }
 
+
+
 	//Suggestion: how do we suggest multiple
 	const pokeQuery: any = {
 		pokemon: {
@@ -43,19 +45,18 @@ interface PokeQuery {
 
 
 let history: any[] = [];
-let level = 0
+let level = 0;
 
-let characters: string[] = ['`','{']
+
+let characters: string[] = ['`','{'];
 
 export function activate(context: vscode.ExtensionContext) {
 
 	//this function accepts the name of the level that's being clicked and suggests the next level
 	let levelChecker = vscode.commands.registerCommand('surfql.levelChecker', async (queryText) => {
-		console.log(queryText)
-		queryLevel = queryText
+		console.log(queryText);
+		queryLevel = queryText;
 	});
-
-	
 
 	//each provider is a set of rules, for what needs to be typed and what will be suggested
 
@@ -166,16 +167,135 @@ export function activate(context: vscode.ExtensionContext) {
 				return suggestions;
 			}
 		},
-		...characters // triggered whenever a backtick is being typed
+		...characters // Trigger characters
 	);
 
 	context.subscriptions.push(provider1, provider2, levelChecker);
 
+	//step 0: test
+// - Do we need provider? And do we need to subscribe the event listener?
+// - Can we log the current line on EVERY change?
 
+//step 1: Parse the current query and determine where the user is
+
+//we need to create an event listener of some sort 
+//it needs to read the current text 
+
+// "pokemon { type {} }"
+// parse the above into our history array: ['pokemon', 'type']
+// this needs to be replaced every single iteration of a letter typed/backspaced
+
+// if(pokequery[history[0]]) -> iterate -> pokequery[typ] --> undefined []
+
+//step 2: Develop function that will determine the appropriate query to suggest 
+//once the user has backspaced enough
+// e.g: Pokemon {type: {ele }} = no suggestion
+// e.g: Pokemon {type: { }} = suggest electric
+
+//step 3: Add logic for multi-line queries
+
+
+
+vscode.workspace.onDidChangeTextDocument((e) => {
+	// console.log(line);
+	const lineNumber: number = e.contentChanges[0].range.start.line;
+	const characterNumber: number = e.contentChanges[0].range.start.character;
+	const line: string = e.document.lineAt(lineNumber).text;
+	console.log('the line number is', lineNumber);
+	console.log('the character number is', characterNumber);
+	//console.log('the position is', new vscode.Position(lineNumber, 20));
+	e.document.positionAt;
+	
+	// figure out way after determing cursor position
+	// to navigate left and right until hitting backtick `
+	/*
+
+	['pokemon','type','moves'] pokemon.moves
+		const query = `
+			pokeQuery {
+				pokemon {
+					type {
+						(how to suggest here)
+					}
+					moves {
+						if you see a closing bracket
+						ignore the next opening bracket moving bkwrds
+					}
+					nest3 {
+
+					}
+				}
+			}
+		`
+	*/
+
+	currentQuery(lineNumber,characterNumber);
+
+	//pokemon
+			//moves
+				//types
+	
+	function currentQuery(lineNumber: number,characterNumber:number) {
+		let lineHistory: string[] = [];
+		let line: string = e.document.lineAt(lineNumber).text;
+    // Cut off everything after the cursor
+		line = line.slice(0, characterNumber + 1);
+
+    // Iterate through the lines of the file (starting from the cursor moving to the start of the file)
+		while(lineNumber >= 0) {
+			// When the start of the query was found: This is the last loop
+			if(line.includes('`')) {
+				lineNumber = -1; // Set line number to -1 to end the loop
+				const startOfQueryIndex = line.indexOf('`');
+				// Slice at the backtick
+				line = line.slice(startOfQueryIndex+1);
+			}
+			
+			lineHistory.push(...line.split(/\s+/g).reverse());
+			lineNumber--;
+			if (lineNumber >= 0) {
+				line = e.document.lineAt(lineNumber).text;
+			}
+		}
+		console.log('the previous history is', lineHistory.reverse());
+		console.log('the line is', line);
+		//console.log(text.split(/\s+/g));
+
+		// decrease line number UNTIL you find `
+		// if no backtick return []
+
+		// '       type'.split(' ') => ['', '', '', '', 'type']
+		//'pokemon {type { electric {} moves {}}}'.split(/\s+/g); // => ['pokemon', '{}']
+		
+		//for (let i = 0; i < text.length; i++) {
+		//let query = `pokemon {}`
+		
+			
+		//}
+
+		// find ` =  let query = `something`
+		// `my name is ${name}`
+		//define all strings from ` 
+
+		// Find start ` and end `
+		// Do we need to find an end? No 🤔
+	}
+
+	function parseQuery(text: string){
+		// pokemon type electric
+	}
+
+	//parse through text and create array element everytime for every word
+	// - Find start/end of query (trim line string)
+	// 		- notes: it tracks backticks + curly braces
+	// - Parse
+});
+
+	
 	//
 	///////////////////////////////////////
 	//////////////////////////////////////
-	//let's do a poptup for preview Schema
+	//let's do a popup for preview Schema
 	let previewSchema = vscode.commands.registerCommand('surfql.previewSchema', async () => {
 		//Prompt user to select Schema file
 		let schemaFilePath = '';
@@ -281,3 +401,16 @@ function traverseObject(obj: any, history: string[]): string[] {
 	// Traverse until and end is reached
   return traverseObject(obj[history[0]], history.slice(1));
 };
+
+
+
+//Out-of-scope features pre-presentation
+// Live-share compatibility (usability)
+// ability to detect ONLY graphql query vs parsing the whole document (efficiency)
+// splash site 
+// vscode publication
+// check to see if the cursor is even within a query
+
+
+//Question for the GQL experts
+// - Are dollar signs $ ever used in GQL?
