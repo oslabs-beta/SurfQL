@@ -84,7 +84,7 @@ function fieldBuilder(string) {
     const typeInfo = arr[1].trim();
     return [variable, typeInfo];
   } else {
-    return undefined;
+    return [undefined];
   }
 }
 

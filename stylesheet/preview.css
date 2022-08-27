@@ -23,36 +23,19 @@
 
 }
 
-.queryType {
-    /* border: 1px solid white;
-    border-radius: 10;
-    position: relative;
-    margin: 4px 2px;
-    margin-right: 10px;
-    height: fit-content;
-    width: fit-content;
-    display: inline-block;
-    outline: 2px;
-    border: 0;
-    font-size: 10px;
-    font-weight: 500;
-    color: #fff;
-    cursor: pointer;
-    background-image: linear-gradient(to right,#05057a,#9f2712)!important;
-    border-radius: 3px;
-    padding: 16px 18px 15px; */
-    background-color: #fbeee0;
+.queryType-alt span {
+  background-color: #fbeee0;
   border: 2px solid #422800;
   border-radius: 15px;
   box-shadow: #422800 4px 4px 0 0;
   color: #422800;
   position: relative;
-    margin: 4px 2px;
-  height: 35px;
+  margin: 4px 2px;
+  /* height: 35px; */
  width: fit-content;
  margin-right: 10px;
   cursor: pointer;
-  display: inline-block;
+  /* display: inline-block; */
   font-weight: 600;
   font-size: 12px;
   padding: 0 18px;
