@@ -137,7 +137,6 @@ function draw(array) {
     const li = document.createElement("li");
     li.setAttribute("data-fields", JSON.stringify(root.fields));
     li.setAttribute("class", "queryType-alt");
-    console.log(root.fields);
     li.innerHTML = `<span>${root.name}</span>`;
     //create childUL
     const childUl = document.createElement("ul");
@@ -153,6 +152,22 @@ function draw(array) {
       childUl.appendChild(childLi);
       //hide children initially
       childUl.hidden = true;
+      //TODO: eventlistener here
+      btn.addEventListener('click', function(e) {
+        //check root.fields[field] === int, str, boolean, do nothing
+        e.stopPropagation();
+        const parent = e.target.parentNode;
+        const [field, fieldtype] = parent.textContent.split(':');
+        console.log(field, fieldtype);
+        //if not, return root.field, add nested structure
+        console.log(array);
+        array.forEach(e => {
+          if (fieldtype === e.name) {
+            console.log(e);
+            drawNext(array, btn, e);
+          }
+        });
+      });
     }
     li.appendChild(childUl);
     li.addEventListener("click", function (e) {
@@ -166,6 +181,41 @@ function draw(array) {
   return;
 };
 
+//function draw the next level fields
+function drawNext(array, node, rootObj) {
+  console.log('drawNext, -> ', array, node, rootObj);
+  //create childUL
+  const childUl = document.createElement("ul");
+  childUl.setAttribute("class", "fieldGroup");
+  for (const field in rootObj.fields) {
+    //create buttons within li
+    const childLi = document.createElement("li");
+    const btn = document.createElement("button");
+    childLi.setAttribute("class", "fieldType-alt");
+    btn.textContent = `${field}:${rootObj.fields[field]}`;
+    //append to list item
+    childLi.appendChild(btn);
+    childUl.appendChild(childLi);
+    //hide children initially
+    // childUl.hidden = true;
+    btn.addEventListener('click', function(e) {
+      //check root.fields[field] === int, str, boolean, do nothing
+      e.stopPropagation();
+      const parent = e.target.parentNode;
+      const [field, fieldtype] = parent.textContent.split(':');
+      console.log(field, fieldtype);
+      //if not, return root.field, add nested structure
+      console.log(array);
+      array.forEach(e => {
+        if (fieldtype === e.name) {
+          drawNext(array, btn, e);
+        }
+      });
+    });
+  }
+  node.appendChild(childUl);
+  return;
+}
 
 //parsingFieldTypeInfor
 function parsingTypeInfo(string) {
