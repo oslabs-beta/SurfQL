@@ -16,8 +16,19 @@ interface PokeQuery {
 		moves: string
 
 	}
-}
+} // /Users/ethanmcrae/test/PathIntellisense/src/test/demo-workspace/project-one/hello/world.txt
 export function activate(context: vscode.ExtensionContext) {
+
+	const filePath = path.join(vscode.workspace.rootPath, 'hello/world.txt');
+	const fileContents = fs.readFileSync(filePath, 'utf8');
+	vscode.window.showInformationMessage(fileContents);
+	// const wsedit = new vscode.WorkspaceEdit();
+	// const wsPath = vscode.workspace.workspaceFolders[0].uri.fsPath; // gets the path of the first workspace folder
+	// const filePath = vscode.Uri.file(wsPath + '/hello/world.txt').toString().slice(7);
+	// vscode.window.showInformationMessage(path.resolve('./project-one/hello/world.txt'));
+	// vscode.window.showInformationMessage(filePath.toString());
+	// const fileContents = fs.readFileSync(filePath);
+	// vscode.window.showInformationMessage(JSON.stringify(fileContents));
 
 	//each provider is a set of rules, for what needs to be typed and what will be suggested
 
@@ -112,8 +123,10 @@ export function activate(context: vscode.ExtensionContext) {
 					let objArr = Object.keys(pokeQuery)
 				let suggestions: Array<any> = []
 
+				const indent = lineIndentation(linePrefix, 2);
+
 				objArr.forEach(e => {
-					suggestions.push(new vscode.CompletionItem(e + ": {", vscode.CompletionItemKind.Method))
+					suggestions.push(new vscode.CompletionItem(`\n${indent}` + e + `:{\${1}\n`, vscode.CompletionItemKind.Method))
 					console.log(suggestions)
 					queryIntiate = false
 					queryLevel = e // == "pokemon"	
@@ -239,3 +252,24 @@ const getWebViewContent = (scriptSrc: String) => {
 
 // this method is called when your extension is deactivated
 export function deactivate() {}
+
+/**
+ * Given a line from a file, a string is returned representing the indentation
+ * in spaces.
+ * @param line 
+ * @return spaces (string)
+ */
+ const lineIndentation = (line: string, add: number = 0): string => {
+  // TODO: Update this function to work with tabs as well
+  let indentation = 0; // Initialize a counter
+  for (const char of line) { // Iterate through each character of the line
+    // console.log(char); // TODO: Remove
+    if (char !== ' ') { // If the character is not a space:
+      return ' '.repeat(indentation + add); // Return the indentation amount
+    } else { // If the character is a space:
+      indentation++; // increment the indentation amount
+    }
+  }
+  // In the case where the entire line is filled with spaces:
+  return ' '.repeat(indentation + add); // Return the indentation amount
+};
