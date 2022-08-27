@@ -10,8 +10,9 @@
     "Other"
   ],
   "activationEvents": [
+    "*",
     "onCommand:surfql.helloWorld",
-    "onCommand:surfal.previewSchema"
+    "onCommand:surfql.previewSchema"
   ],
   "main": "./dist/extension.js",
   "contributes": {
