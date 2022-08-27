@@ -231,23 +231,25 @@ vscode.workspace.onDidChangeTextDocument((e) => {
 
 	currentQuery(lineNumber,characterNumber);
 
-	//pokemon
-			//moves
-				//types
-	
-	function currentQuery(lineNumber: number,characterNumber:number) {
+  /**
+   * Parses the document returning query information
+   * @param lineNumber lists the VSCode line [index 0] the user is on
+   * @param cursorLocation a number representing the cursor location
+   * @return array of words prior to the users current cursor
+   */
+	function currentQuery(lineNumber: number, cursorLocation:number): string[] {
 		let lineHistory: string[] = [];
 		let line: string = e.document.lineAt(lineNumber).text;
     // Cut off everything after the cursor
-		line = line.slice(0, characterNumber + 1);
+		line = line.slice(0, cursorLocation + 1);
 
     // Iterate through the lines of the file (starting from the cursor moving to the start of the file)
 		while(lineNumber >= 0) {
 			// When the start of the query was found: This is the last loop
 			if(line.includes('`')) {
 				lineNumber = -1; // Set line number to -1 to end the loop
-				const startOfQueryIndex = line.indexOf('`');
 				// Slice at the backtick
+				const startOfQueryIndex = line.indexOf('`');
 				line = line.slice(startOfQueryIndex+1);
 			}
 			
@@ -257,8 +259,13 @@ vscode.workspace.onDidChangeTextDocument((e) => {
 				line = e.document.lineAt(lineNumber).text;
 			}
 		}
+    
+    // Filter out the empty strings from the array
+	//const result = words.filter(word => word.length > 6);
+    lineHistory = lineHistory.filter(characters => characters);
 		console.log('the previous history is', lineHistory.reverse());
 		console.log('the line is', line);
+    return lineHistory;
 		//console.log(text.split(/\s+/g));
 
 		// decrease line number UNTIL you find `
