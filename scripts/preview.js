@@ -21,12 +21,11 @@ window.addEventListener("message", (event) => {
   const message = event.data;
   console.log("message2", event);
   const text = message.text;
-  console.log(text);
   //call parser
-  if (message.command === "sendText") {
-    const schemaArr = parser(text);
-    console.log(schemaArr);
-    //TODO: use schemaObj to create DOM elements
+  if (message.command === "sendSchemaInfo") {
+    // const [schemaArr, returnObj] = parser(text);
+    const schemaArr = JSON.parse(message.text);
+    console.log('here it comes', schemaArr);
     draw(schemaArr);
     return;
   }
@@ -46,6 +45,8 @@ const parser = (text) => {
   const query = [];
   const mutation = [];
   //read through line by line, conditional check
+  const returnObj = [];
+  let curRoot = undefined;
   arr.forEach(line => {
       const cleanline = line.trim();
       if (cleanline.slice(0,4) === 'type') {
@@ -53,6 +54,8 @@ const parser = (text) => {
           const variable = rootBuilder(cleanline.slice(4));
           const newRoot = new Root(variable);
           root.push(newRoot);
+          curRoot = variable;
+          returnObj[curRoot] = {};
       } else if (cleanline[0] === '}' || cleanline.trim().length === 0){
           //do nothing
       } else {
@@ -60,12 +63,13 @@ const parser = (text) => {
               const [variable, typeInfo] = fieldBuilder(cleanline);
               if (variable && typeInfo) {
                   root[root.length-1].fields[variable] = parsingTypeInfo(typeInfo);
+                  returnObj[curRoot][variable] = parsingTypeInfo(typeInfo);
               }
           }
       }
   });
   console.log(root);
-  return root;
+  return [root, returnObj];
 };
 
 function Root(val) {
@@ -142,6 +146,7 @@ function draw(array) {
     const childUl = document.createElement("ul");
     childUl.setAttribute("class", "fieldGroup");
     for (const field in root.fields) {
+      console.log(field);
       //create buttons within li
       const childLi = document.createElement("li");
       const btn = document.createElement("button");
@@ -151,7 +156,7 @@ function draw(array) {
       childLi.appendChild(btn);
       childUl.appendChild(childLi);
       //hide children initially
-      childUl.hidden = true;
+      // childUl.hidden = true;
       //TODO: eventlistener here
       btn.addEventListener('click', function(e) {
         //check root.fields[field] === int, str, boolean, do nothing
@@ -171,6 +176,7 @@ function draw(array) {
     }
     li.appendChild(childUl);
     li.addEventListener("click", function (e) {
+      console.log(e.target);
       //locate children
       const children = this.querySelector("ul");
       children.hidden = !children.hidden;

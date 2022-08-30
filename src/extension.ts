@@ -3,6 +3,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
+import parser from "./parser";
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -78,13 +79,16 @@ export function activate(context: vscode.ExtensionContext) {
         console.log("message1", message);
         if (message.command === "get schema text") {
           let schemaText = fs.readFileSync(schemaFilePath, "utf8");
+          const [schemaArr, returnObj] = parser(schemaText);
+          console.log(schemaArr, returnObj);
           panel.webview.postMessage({
-            command: "sendText",
-            text: schemaText,
+            command: "sendSchemaInfo",
+            text: JSON.stringify(schemaArr),
           });
         }
         return;
       });
+
     }
   );
 
