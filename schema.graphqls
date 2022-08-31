@@ -7,6 +7,27 @@ type Query {
   field: String!
 }
 
+type Mutation {
+  createBuyer(
+    buyer_email: String!
+    password: String!
+    buyer_nickname: String!
+  ): BuyerPayload!
+  updateBuyer(
+    pk_buyer_id: Int!
+    buyer_email: String!
+    password: String!
+    buyer_nickname: String!
+  ): String!
+}
+
+input CreateUserInput {
+  name: String!
+  username: String!
+  age: Int!
+  nationality: String!
+}
+
 type Buyer {
   pk_buyer_id: Int!
   buyer_email: String!
