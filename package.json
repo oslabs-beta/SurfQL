@@ -11,7 +11,7 @@
   ],
   "activationEvents": [
     "*",
-    "onCommand:surfal.previewSchema"
+    "onCommand:surfql.previewSchema"
   ],
   "main": "./dist/extension.js",
   "contributes": {

@@ -6,22 +6,139 @@ import { type } from 'os';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import parser from "./parser";
 
-let queryIntiate = true
-let queryLevel : any
-interface PokeQuery {
-	pokemon: {
-		name:string,
-		type: string,
-		moves: string
+let queryIntiate = true;
+let queryLevel : any;
 
-	}
-}
+	let pokeQuery: any = {
+		pokemon: {
+			name: "Pikachu",
+			type: {
+				electric: {
+					shocking: true,
+					treasureChest: {
+						treasure: 'yarr'
+					}
+				},
+				water: false
+			},
+			moves: "Tackle"
+		},
+		test2: {
+			tester: 'test',
+		},
+		test3: {
+			works: true
+		}
+	};
+
+
+let history: any[] = [];
+let level = 0;
+
+
+let characters: string[] = ['`','{'];
+
 export function activate(context: vscode.ExtensionContext) {
+
+	 // Use the console to output diagnostic information (console.log) and errors (console.error)
+  // This line of code will only be executed once when your extension is activated
+  console.log('Congratulations, your extension "surfql" is now active!');
+
+  // The command has been defined in the package.json file
+  // Now provide the implementation of the command with registerCommand
+  // The commandId parameter must match the command field in package.json
+  let disposable = vscode.commands.registerCommand("surfql.helloWorld", () => {
+    // The code you place here will be executed every time your command is executed
+    // Display a message box to the user
+    vscode.window.showInformationMessage("Hello World from SurfQL!");
+  });
+
+  //let's do a poptup for preview Schema
+  let previewSchema = vscode.commands.registerCommand(
+    "surfql.previewSchema",
+    async () => {
+      //Prompt user to select Schema file
+      let schemaFilePath = "";
+
+      const options: vscode.OpenDialogOptions = {
+        canSelectMany: false,
+        openLabel: "Open",
+        filters: {
+          "graphqls files": ["graphql", "graphqls", "ts", "js"],
+        },
+      };
+
+
+      await vscode.window.showOpenDialog(options).then((fileUri) => {
+        console.log("file Uri -> ", fileUri);
+        if (fileUri && fileUri[0]) {
+          schemaFilePath = fileUri[0].fsPath;
+        }
+      });
+
+      //create a newpanel in webView
+      const panel = vscode.window.createWebviewPanel(
+        "Preview Schema", //viewType, internal use
+        "Schema Preview", //Preview title in the tag
+        vscode.ViewColumn.Beside, //where the new panel shows
+        {
+          enableScripts: true,
+        } //option to add scripts
+      );
+
+      // Get path to the preview.js script on disk
+      const onDiskPath = vscode.Uri.file(
+        path.join(context.extensionPath, "scripts", "preview.js")
+      );
+
+      //toDo add stylesheet.
+      const styleSheetPath = vscode.Uri.file(
+        path.join(context.extensionPath, "stylesheet", "preview.css")
+      );
+
+      console.log("on disk path", onDiskPath);
+      //add the previewjs to panel as a accessible Uri
+      const scriptSrc = panel.webview.asWebviewUri(onDiskPath);
+      const styleSrc = panel.webview.asWebviewUri(styleSheetPath);
+
+      //Add html content//
+      panel.webview.html = getWebViewContent(
+        scriptSrc.toString(),
+        styleSrc.toString()
+      );
+
+      //add event listener to webview
+      panel.webview.onDidReceiveMessage((message) => {
+        console.log("message1", message);
+        if (message.command === "get schema text") {
+          let schemaText = fs.readFileSync(schemaFilePath, "utf8");
+          const [schemaArr, returnObj] = parser(schemaText);
+          console.log(returnObj);
+		  pokeQuery = returnObj;
+          panel.webview.postMessage({
+            command: "sendSchemaInfo",
+            text: JSON.stringify(schemaArr),
+          });
+        }
+        return;
+      });
+
+    }
+  );
+
+  context.subscriptions.push(previewSchema);
+
+	//this function accepts the name of the level that's being clicked and suggests the next level
+	let levelChecker = vscode.commands.registerCommand('surfql.levelChecker', async (queryText) => {
+		console.log(queryText);
+		queryLevel = queryText;
+	});
 
 	//each provider is a set of rules, for what needs to be typed and what will be suggested
 
-	const provider1 = vscode.languages.registerCompletionItemProvider('javascript', {
+	const provider1: vscode.Disposable = vscode.languages.registerCompletionItemProvider('javascript', {
 
 		provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext) {
 
@@ -78,26 +195,12 @@ export function activate(context: vscode.ExtensionContext) {
 			];
 		}
 	});
-	const provider2 = vscode.languages.registerCompletionItemProvider(
+	let provider2: vscode.Disposable = vscode.languages.registerCompletionItemProvider(
 		'javascript',
 		{
 			provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
-
-				const pokeQuery: any = {
-					pokemon: {
-						name: "Pikachu",
-						type: "Electric",
-						moves: "Tackle"
-					},
-					test2: {
-						tester: 'test',
-					},
-					test3: {
-						works: true
-					}
-				}
-	
-
+				
+			
 				//Initial activation should be via back tick, but ALL further queries should NOT be using this
 				const linePrefix = document.lineAt(position).text.substr(0, position.character);
 				if (!linePrefix.includes("`")) {
@@ -105,118 +208,187 @@ export function activate(context: vscode.ExtensionContext) {
 				}
 
 				function setLevel(e: any) {
-					console.log('the function has been activated and the level is ', e)
+					console.log('the function has been activated and the level is ', e);
 				}
 
-				if (queryIntiate == true) {
-					let objArr = Object.keys(pokeQuery)
-				let suggestions: Array<any> = []
+        const suggestions: Array<any> = [];
+				if (queryIntiate === true) {
+					let objArr = Object.keys(pokeQuery);
 
-				objArr.forEach(e => {
-					suggestions.push(new vscode.CompletionItem(e + ": {", vscode.CompletionItemKind.Method))
-					console.log(suggestions)
-					queryIntiate = false
-					queryLevel = e // == "pokemon"	
+					objArr.forEach(e => {
+						let tempCompItem = new vscode.CompletionItem(e + ": ", vscode.CompletionItemKind.Keyword);
+						tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
+						suggestions.push(tempCompItem);
+						//console.log(suggestions)
+						queryLevel = e; // == "pokemon"	
+					});
+					level++;
+          			queryIntiate = false;
 					
-				})
-				return suggestions;
-				} else {
-					let objArr = Object.keys(pokeQuery[queryLevel])
-
-					let suggestions: Array<any> = []
-
-				objArr.forEach(e => {
-					suggestions.push(new vscode.CompletionItem(e + ": {", vscode.CompletionItemKind.Method))
-					console.log(suggestions)
-					queryIntiate = false
-					queryLevel = e 
-
-					
-					
-				})
-
-				return suggestions;
+			  } 
+				else {
+					history.push(queryLevel);
+						console.log('we are on level', level);
+						let objArr = traverseObject(pokeQuery,history);
+						
+					objArr.forEach(e => {
+						let tempCompItem = new vscode.CompletionItem(e + ": ", vscode.CompletionItemKind.Keyword);
+						tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
+						suggestions.push(tempCompItem);
+						
+						//console.log(suggestions);
+						queryIntiate = false;
+						queryLevel = e ;
+					});
+					level++;
 				}
-
-				
-
-				
+				return suggestions;
 			}
 		},
-		'`' // triggered whenever a backtick is being typed
+		...characters // Trigger characters
 	);
 
-	context.subscriptions.push(provider1, provider2);
+	context.subscriptions.push(provider1, provider2, levelChecker);
 
-	//let's do a poptup for preview Schema
-	let previewSchema = vscode.commands.registerCommand('surfql.previewSchema', async () => {
-		//Prompt user to select Schema file
-		let schemaFilePath = '';
+	//step 0: test
+// - Do we need provider? And do we need to subscribe the event listener?
+// - Can we log the current line on EVERY change?
 
-		const options: vscode.OpenDialogOptions = {
-			canSelectMany: false,
-			openLabel: 'Open',
-			filters: {
-				'graphqls files': ['graphql', 'graphqls', 'ts', 'js']
+//step 1: Parse the current query and determine where the user is
+
+//we need to create an event listener of some sort 
+//it needs to read the current text 
+
+// "pokemon { type {} }"
+// parse the above into our history array: ['pokemon', 'type']
+// this needs to be replaced every single iteration of a letter typed/backspaced
+
+// if(pokequery[history[0]]) -> iterate -> pokequery[typ] --> undefined []
+
+//step 2: Develop function that will determine the appropriate query to suggest 
+//once the user has backspaced enough
+// e.g: Pokemon {type: {ele }} = no suggestion
+// e.g: Pokemon {type: { }} = suggest electric
+
+//step 3: Add logic for multi-line queries
+
+
+
+vscode.workspace.onDidChangeTextDocument((e) => {
+	// console.log(line);
+	const lineNumber: number = e.contentChanges[0].range.start.line;
+	const characterNumber: number = e.contentChanges[0].range.start.character;
+	const line: string = e.document.lineAt(lineNumber).text;
+	console.log('the line number is', lineNumber);
+	console.log('the character number is', characterNumber);
+	//console.log('the position is', new vscode.Position(lineNumber, 20));
+	e.document.positionAt;
+	
+	// figure out way after determing cursor position
+	// to navigate left and right until hitting backtick `
+	/*
+
+	['pokemon','type','moves'] pokemon.moves
+		const query = `
+			pokeQuery {
+				pokemon {
+					type {
+						(how to suggest here)
+					}
+					moves {
+						if you see a closing bracket
+						ignore the next opening bracket moving bkwrds
+					}
+					nest3 {
+
+					}
+				}
 			}
-		};
+		`
+	*/
 
-		await vscode.window.showOpenDialog(options).then(fileUri => {
-			console.log('file Uri -> ', fileUri);
-			if (fileUri && fileUri[0]) {
-				schemaFilePath = fileUri[0].fsPath;
+	currentQuery(lineNumber,characterNumber);
+
+  /**
+   * Parses the document returning query information
+   * @param lineNumber lists the VSCode line [index 0] the user is on
+   * @param cursorLocation a number representing the cursor location
+   * @return array of words prior to the users current cursor
+   */
+	function currentQuery(lineNumber: number, cursorLocation:number): string[] {
+		let lineHistory: string[] = [];
+		let line: string = e.document.lineAt(lineNumber).text;
+    // Cut off everything after the cursor
+		line = line.slice(0, cursorLocation + 1);
+
+    // Iterate through the lines of the file (starting from the cursor moving to the start of the file)
+		while(lineNumber >= 0) {
+			// When the start of the query was found: This is the last loop
+			if(line.includes('`')) {
+				lineNumber = -1; // Set line number to -1 to end the loop
+				// Slice at the backtick
+				const startOfQueryIndex = line.indexOf('`');
+				line = line.slice(startOfQueryIndex+1);
 			}
-		});
-
-		//create a newpanel in webView
-		const panel = vscode.window.createWebviewPanel(
-			"Preview Schema", //viewType, internal use
-			"Schema Preview", //Preview title in the tag
-			vscode.ViewColumn.Beside, //where the new panel shows
-			{
-				enableScripts: true
-			} //option to add scripts
-		);
-
-		
-		// Get path to the preview.js script on disk
-		const onDiskPath = vscode.Uri.file(
-			path.join(context.extensionPath,'scripts', 'preview.js')
-		);
-		
-
-		console.log('on disk path', onDiskPath);
-		//add the previewjs to panel as a accessible Uri
-		const scriptSrc = panel.webview.asWebviewUri(onDiskPath);
 			
-		//Add html content//
-		panel.webview.html = getWebViewContent(scriptSrc.toString());
+			lineHistory.push(...line.split(/\s+/g).reverse());
+			lineNumber--;
+			if (lineNumber >= 0) {
+				line = e.document.lineAt(lineNumber).text;
+			}
+		}
+    
+    // Filter out the empty strings from the array
+	//const result = words.filter(word => word.length > 6);
+    lineHistory = lineHistory.filter(characters => characters);
+		console.log('the previous history is', lineHistory.reverse());
+		console.log('the line is', line);
+    return lineHistory;
+		//console.log(text.split(/\s+/g));
 
-		//add event listener to webview
-		panel.webview.onDidReceiveMessage(message => {
-			console.log('message1', message);
-			if (message.command === 'get schema text') {
-				let schemaText = fs.readFileSync(schemaFilePath, 'utf8');
-				panel.webview.postMessage({
-					command: 'sendText',
-					text: schemaText
-				});
-			};
-			return;
-		});
+		// decrease line number UNTIL you find `
+		// if no backtick return []
+
+		// '       type'.split(' ') => ['', '', '', '', 'type']
+		//'pokemon {type { electric {} moves {}}}'.split(/\s+/g); // => ['pokemon', '{}']
+		
+		//for (let i = 0; i < text.length; i++) {
+		//let query = `pokemon {}`
+		
+			
+		//}
+
+		// find ` =  let query = `something`
+		// `my name is ${name}`
+		//define all strings from ` 
+
+		// Find start ` and end `
+		// Do we need to find an end? No 🤔
+	}
+
+	function parseQuery(text: string){
+		// pokemon type electric
+	}
+
+	//parse through text and create array element everytime for every word
+	// - Find start/end of query (trim line string)
+	// 		- notes: it tracks backticks + curly braces
+	// - Parse
 	});
+};
 
-}
+
 
 //Initial preview html content
-const getWebViewContent = (scriptSrc: String) => {
-	return `<!DOCTYPE html>
+const getWebViewContent = (scriptSrc: String, styleSrc: String) => {
+  return `<!DOCTYPE html>
 				<html lang="en">
 					<head>
 						<meta charset="UTF-8">
 						<meta name="viewport" content="width=device-width, initial-scale=1.0">
 						<title>PreviewSchema</title>
-						<script type="text/javascript" src="${ scriptSrc }"></script>
+						<script type="text/javascript" src="${scriptSrc}"></script>
+						<link rel="stylesheet" href="${styleSrc}" />
 					</head>
 					<body>
 						<h1>Schema Name</h1>
@@ -234,8 +406,35 @@ const getWebViewContent = (scriptSrc: String) => {
 						</script>
 					</body>
 				</html>`;
-
 };
 
 // this method is called when your extension is deactivated
 export function deactivate() {}
+
+// Traverse to the current part of the object based on the history
+function traverseObject(obj: any, history: string[]): string[] {
+	// If our obj isn't an object we have hit the end of our traversal
+	if (typeof obj !== 'object') {
+		console.log('youve reached the end of the object!');
+		return [];
+	}
+	// If we have hit the end of our history return the nested object keys
+  else if (history.length === 0) {
+		return Object.keys(obj);
+	}
+	// Traverse until and end is reached
+  return traverseObject(obj[history[0]], history.slice(1));
+};
+
+
+
+//Out-of-scope features pre-presentation
+// Live-share compatibility (usability)
+// ability to detect ONLY graphql query vs parsing the whole document (efficiency)
+// splash site 
+// vscode publication
+// check to see if the cursor is even within a query
+
+
+//Question for the GQL experts
+// - Are dollar signs $ ever used in GQL?
