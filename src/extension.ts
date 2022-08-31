@@ -80,7 +80,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (message.command === "get schema text") {
           let schemaText = fs.readFileSync(schemaFilePath, "utf8");
           const [schemaArr, returnObj] = parser(schemaText);
-          console.log(schemaArr, returnObj);
+          console.log(returnObj);
           panel.webview.postMessage({
             command: "sendSchemaInfo",
             text: JSON.stringify(schemaArr),

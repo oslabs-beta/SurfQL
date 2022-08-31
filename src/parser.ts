@@ -8,6 +8,7 @@
 //Parser V2:
 //able to skip front lines
 //return field info.
+//return an object for autocomplete and an array for display (can definitely simplify)
 
 class Root {
   name: string;
