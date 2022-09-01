@@ -12,25 +12,6 @@ let queryIntiate = true;
 let queryLevel : any;
 
 	let pokeQuery: any = {
-		pokemon: {
-			name: "Pikachu",
-			type: {
-				electric: {
-					shocking: true,
-					treasureChest: {
-						treasure: 'yarr'
-					}
-				},
-				water: false
-			},
-			moves: "Tackle"
-		},
-		test2: {
-			tester: 'test',
-		},
-		test3: {
-			works: true
-		}
 	};
 
 
@@ -70,7 +51,6 @@ export function activate(context: vscode.ExtensionContext) {
         },
       };
 
-
       await vscode.window.showOpenDialog(options).then((fileUri) => {
         console.log("file Uri -> ", fileUri);
         if (fileUri && fileUri[0]) {
@@ -98,7 +78,7 @@ export function activate(context: vscode.ExtensionContext) {
         path.join(context.extensionPath, "stylesheet", "preview.css")
       );
 
-      console.log("on disk path", onDiskPath);
+      //console.log("on disk path", onDiskPath);
       //add the previewjs to panel as a accessible Uri
       const scriptSrc = panel.webview.asWebviewUri(onDiskPath);
       const styleSrc = panel.webview.asWebviewUri(styleSheetPath);
@@ -114,9 +94,9 @@ export function activate(context: vscode.ExtensionContext) {
         console.log("message1", message);
         if (message.command === "get schema text") {
           let schemaText = fs.readFileSync(schemaFilePath, "utf8");
-          const [schemaArr, returnObj] = parser(schemaText);
-          console.log(returnObj);
-		  pokeQuery = returnObj;
+		  //deconstruct returned schemaArr and schemaObj, send schemaArr to webview Panel, keep schemaObj use for autocomplete.
+          const [schemaArr, schemaObj] = parser(schemaText);
+		  pokeQuery = schemaObj;
           panel.webview.postMessage({
             command: "sendSchemaInfo",
             text: JSON.stringify(schemaArr),
@@ -124,19 +104,20 @@ export function activate(context: vscode.ExtensionContext) {
         }
         return;
       });
-
     }
   );
+	//end of previewSchema
+  	context.subscriptions.push(previewSchema);
 
-  context.subscriptions.push(previewSchema);
-
+	
+	//-----------------------Start for Autocomplete-----------------------//
 	//this function accepts the name of the level that's being clicked and suggests the next level
 	let levelChecker = vscode.commands.registerCommand('surfql.levelChecker', async (queryText) => {
 		console.log(queryText);
 		queryLevel = queryText;
 	});
 
-	//each provider is a set of rules, for what needs to be typed and what will be suggested
+	//provider1 is kept for study purpose only, not used for our extension.
 
 	const provider1: vscode.Disposable = vscode.languages.registerCompletionItemProvider('javascript', {
 
@@ -159,16 +140,12 @@ export function activate(context: vscode.ExtensionContext) {
 			// be inserted and then the character will be typed.
 
 
-	
-
-
 			//definitions
 			// CompletionItem is text that's suggested by VSCode to the user...
 			//example: if you define completion item as chicken and type "chi" it will show "chicken"
 
 			//commitCharacters is the string that triggers the ???
 			
-
 
 
 			//We need the completion item to basically be the next item in the query
@@ -195,23 +172,24 @@ export function activate(context: vscode.ExtensionContext) {
 			];
 		}
 	});
+
+
+	//----------------Start for provider2----------------//
 	let provider2: vscode.Disposable = vscode.languages.registerCompletionItemProvider(
 		'javascript',
 		{
 			provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
 				
-			
 				//Initial activation should be via back tick, but ALL further queries should NOT be using this
 				const linePrefix = document.lineAt(position).text.substr(0, position.character);
 				if (!linePrefix.includes("`")) {
 					return undefined;
 				}
-
 				function setLevel(e: any) {
 					console.log('the function has been activated and the level is ', e);
 				}
-
-        const suggestions: Array<any> = [];
+				//suggestions in the tooltip
+        		const suggestions: Array<any> = [];
 				if (queryIntiate === true) {
 					let objArr = Object.keys(pokeQuery);
 
@@ -223,21 +201,17 @@ export function activate(context: vscode.ExtensionContext) {
 						queryLevel = e; // == "pokemon"	
 					});
 					level++;
-          			queryIntiate = false;
-					
-			  } 
-				else {
+					queryIntiate = false;
+			  	} else {
 					history.push(queryLevel);
-						console.log('we are on level', level);
-						let objArr = traverseObject(pokeQuery,history);
-						
+							console.log('we are on level', level);
+							let objArr = traverseObject(pokeQuery,history);
 					objArr.forEach(e => {
 						let tempCompItem = new vscode.CompletionItem(e + ": ", vscode.CompletionItemKind.Keyword);
 						tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
 						suggestions.push(tempCompItem);
-						
 						//console.log(suggestions);
-						queryIntiate = false;
+						queryIntiate = false;							
 						queryLevel = e ;
 					});
 					level++;
@@ -249,6 +223,7 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 
 	context.subscriptions.push(provider1, provider2, levelChecker);
+
 
 	//step 0: test
 // - Do we need provider? And do we need to subscribe the event listener?
@@ -273,7 +248,9 @@ export function activate(context: vscode.ExtensionContext) {
 //step 3: Add logic for multi-line queries
 
 
+//function that attempts to destructure strings to determine hierarchy 
 
+// pokemon { moves: { }}
 vscode.workspace.onDidChangeTextDocument((e) => {
 	// console.log(line);
 	const lineNumber: number = e.contentChanges[0].range.start.line;
@@ -321,6 +298,21 @@ vscode.workspace.onDidChangeTextDocument((e) => {
     // Cut off everything after the cursor
 		line = line.slice(0, cursorLocation + 1);
 
+		//Step 1: create an Array that contains the current string typed and ONLY between ``
+		//Step 2: when a new "{" is typed, it should first check what the users current query is based off the array from step 1
+		//Example: if someone types 
+		//pokemon: { 
+			//moves: {  <-- as soon as this bracket is typed it should trigger our function
+		// our function should read the text as ['pokemon', 'moves'] and know the order is pokemon.moves and should suggest electric/water
+		//however if the query is
+		//pokemon: {
+			//mov: {
+		//the function should read the text as ['pokemon','mov'], now pokemon.mov is not a valid query so this should not return anything
+		//the outcome of this is that, at any point the function can quickly parse text between the backticks `` and suggest based on where the user is
+		//on their current query.
+	
+
+
     // Iterate through the lines of the file (starting from the cursor moving to the start of the file)
 		while(lineNumber >= 0) {
 			// When the start of the query was found: This is the last loop
@@ -338,9 +330,9 @@ vscode.workspace.onDidChangeTextDocument((e) => {
 			}
 		}
     
-    // Filter out the empty strings from the array
-	//const result = words.filter(word => word.length > 6);
-    lineHistory = lineHistory.filter(characters => characters);
+		// Filter out the empty strings from the array
+		//const result = words.filter(word => word.length > 6);
+		lineHistory = lineHistory.filter(characters => characters);
 		console.log('the previous history is', lineHistory.reverse());
 		console.log('the line is', line);
     return lineHistory;
