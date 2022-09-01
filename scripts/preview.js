@@ -25,13 +25,11 @@ window.addEventListener("message", (event) => {
   if (message.command === "sendSchemaInfo") {
     // const [schemaArr, returnObj] = parser(text);
     const schemaArr = JSON.parse(message.text);
-    console.log('here it comes', schemaArr);
+    console.log("here it comes", schemaArr);
     draw(schemaArr);
     return;
   }
 });
-
-
 
 // //display function
 function draw(array) {
@@ -61,20 +59,19 @@ function draw(array) {
       childLi.appendChild(btn);
       childUl.appendChild(childLi);
       //hide children initially
-      // childUl.hidden = true;
+      childUl.hidden = true;
       //TODO: eventlistener here
-      btn.addEventListener('click', function(e) {
+      btn.addEventListener("click", function (e) {
         //check root.fields[field] === int, str, boolean, do nothing
         e.stopPropagation();
         const parent = e.target.parentNode;
-        const [field, fieldtype] = parent.textContent.split(':');
+        const [field, fieldtype] = parent.textContent.split(":");
         console.log(field, fieldtype);
         //if not, return root.field, add nested structure
         console.log(array);
-        array.forEach(e => {
-
+        array.forEach((e) => {
           if (fieldtype === e.name) {
-            console.log("e",e);
+            console.log("e", e);
             drawNext(array, btn, e); //array, btn buyer
           }
         });
@@ -91,11 +88,11 @@ function draw(array) {
     //console.log(root);
   });
   return;
-};
+}
 
 //function draw the next level fields
 function drawNext(array, node, rootObj) {
-  console.log('drawNext, -> ', array, node, rootObj);
+  console.log("drawNext, -> ", array, node, rootObj);
   //create childUL
   const childUl = document.createElement("ul");
   childUl.setAttribute("class", "fieldGroup");
@@ -110,24 +107,28 @@ function drawNext(array, node, rootObj) {
     childUl.appendChild(childLi);
     //hide children initially
     // childUl.hidden = true;
-    btn.addEventListener('click', function(e) {
-      console.log("text")
+    btn.addEventListener("click", function (e) {
+      console.log("text");
       //check root.fields[field] === int, str, boolean, do nothing
       e.stopPropagation();
       const parent = e.target.parentNode;
-      const [field, fieldtype] = parent.textContent.split(':');
+      const [field, fieldtype] = parent.textContent.split(":");
       console.log(field, fieldtype);
       //if not, return root.field, add nested structure
       console.log(array);
-      array.forEach(e => {
-
+      array.forEach((e) => {
         if (fieldtype === e.name) {
           drawNext(array, btn, e);
         }
       });
     });
   }
+  node.addEventListener("click", function (e) {
+    console.log(e.target);
+    //locate children
+    const children = this.querySelector("ul");
+    children.hidden = !children.hidden;
+  });
   node.appendChild(childUl);
   return;
 }
-
