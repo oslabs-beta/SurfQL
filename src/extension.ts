@@ -211,7 +211,7 @@ export function activate(context: vscode.ExtensionContext) {
 					console.log('the function has been activated and the level is ', e);
 				}
 
-			const suggestions: Array<any> = [];
+				const suggestions: Array<any> = [];
 
 				//Step 1: analyze what has been typed by the user, between the backticks
 				// ex: Pokequery -> if what the user has typed == obj.keys
@@ -225,12 +225,10 @@ export function activate(context: vscode.ExtensionContext) {
 				// ['Pokemon'] --> moves
 
 
+				// history.push(queryLevel); [Pokemon, Moves] <-- this now happens in the event listener
+				console.log('we are on level', level);
+				let objArr = traverseObject(schema, history);
 
-
-				 //history.push(queryLevel); [Pokemon, Moves]
-					console.log('we are on level', level);
-					let objArr = traverseObject(schema,history);
-					
 				objArr.forEach(e => {
 					let tempCompItem = new vscode.CompletionItem(e + " ", vscode.CompletionItemKind.Keyword);
 					tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
