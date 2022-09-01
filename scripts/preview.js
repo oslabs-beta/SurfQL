@@ -72,9 +72,10 @@ function draw(array) {
         //if not, return root.field, add nested structure
         console.log(array);
         array.forEach(e => {
+
           if (fieldtype === e.name) {
-            console.log(e);
-            drawNext(array, btn, e);
+            console.log("e",e);
+            drawNext(array, btn, e); //array, btn buyer
           }
         });
       });
@@ -110,6 +111,7 @@ function drawNext(array, node, rootObj) {
     //hide children initially
     // childUl.hidden = true;
     btn.addEventListener('click', function(e) {
+      console.log("text")
       //check root.fields[field] === int, str, boolean, do nothing
       e.stopPropagation();
       const parent = e.target.parentNode;
@@ -118,6 +120,7 @@ function drawNext(array, node, rootObj) {
       //if not, return root.field, add nested structure
       console.log(array);
       array.forEach(e => {
+
         if (fieldtype === e.name) {
           drawNext(array, btn, e);
         }
