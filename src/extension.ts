@@ -11,7 +11,7 @@ import parser from "./parser";
 let queryIntiate = true;
 let queryLevel : any;
 
-	let pokeQuery: any = {
+	let schema: any = {
 		pokemon: {
 			name: "Pikachu",
 			type: {
@@ -116,7 +116,7 @@ export function activate(context: vscode.ExtensionContext) {
           let schemaText = fs.readFileSync(schemaFilePath, "utf8");
           const [schemaArr, returnObj] = parser(schemaText);
           console.log(returnObj);
-		  pokeQuery = returnObj;
+		  schema = createNestedObj(returnObj);
           panel.webview.postMessage({
             command: "sendSchemaInfo",
             text: JSON.stringify(schemaArr),
@@ -211,37 +211,37 @@ export function activate(context: vscode.ExtensionContext) {
 					console.log('the function has been activated and the level is ', e);
 				}
 
-        const suggestions: Array<any> = [];
-				if (queryIntiate === true) {
-					let objArr = Object.keys(pokeQuery);
+			const suggestions: Array<any> = [];
 
-					objArr.forEach(e => {
-						let tempCompItem = new vscode.CompletionItem(e + ": ", vscode.CompletionItemKind.Keyword);
-						tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
-						suggestions.push(tempCompItem);
-						//console.log(suggestions)
-						queryLevel = e; // == "pokemon"	
-					});
-					level++;
-          			queryIntiate = false;
+				//Step 1: analyze what has been typed by the user, between the backticks
+				// ex: Pokequery -> if what the user has typed == obj.keys
+				//  - Register pokequery as our main object
+				//  - Or... schemaFile: { Dishes:{} Order:{} ...{} }
+				//    - For example: Pokequery is now comparable to schemaFile.
+				//    - We will always use our schemaFile as our root (thats what we initialize with all the sub schemas)
+
+				// let query = `Pokemon { {} }`
+				// ['Pokemon','mo'] --> return nothing
+				// ['Pokemon'] --> moves
+
+
+
+
+				 //history.push(queryLevel); [Pokemon, Moves]
+					console.log('we are on level', level);
+					let objArr = traverseObject(schema,history);
 					
-			  } 
-				else {
-					history.push(queryLevel);
-						console.log('we are on level', level);
-						let objArr = traverseObject(pokeQuery,history);
-						
-					objArr.forEach(e => {
-						let tempCompItem = new vscode.CompletionItem(e + ": ", vscode.CompletionItemKind.Keyword);
-						tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
-						suggestions.push(tempCompItem);
-						
-						//console.log(suggestions);
-						queryIntiate = false;
-						queryLevel = e ;
-					});
-					level++;
-				}
+				objArr.forEach(e => {
+					let tempCompItem = new vscode.CompletionItem(e + " ", vscode.CompletionItemKind.Keyword);
+					tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
+					suggestions.push(tempCompItem);
+					
+					//console.log(suggestions);
+					queryIntiate = false;
+					queryLevel = e ;
+				});
+				
+				level++;
 				return suggestions;
 			}
 		},
@@ -307,15 +307,15 @@ vscode.workspace.onDidChangeTextDocument((e) => {
 		`
 	*/
 
-	currentQuery(lineNumber,characterNumber);
+	currentQuery(lineNumber, characterNumber);
 
   /**
    * Parses the document returning query information
    * @param lineNumber lists the VSCode line [index 0] the user is on
    * @param cursorLocation a number representing the cursor location
-   * @return array of words prior to the users current cursor
+   * @return nothing but re-declares history
    */
-	function currentQuery(lineNumber: number, cursorLocation:number): string[] {
+	function currentQuery(lineNumber: number, cursorLocation:number): void {
 		let lineHistory: string[] = [];
 		let line: string = e.document.lineAt(lineNumber).text;
     // Cut off everything after the cursor
@@ -338,36 +338,16 @@ vscode.workspace.onDidChangeTextDocument((e) => {
 			}
 		}
     
-    // Filter out the empty strings from the array
-	//const result = words.filter(word => word.length > 6);
-    lineHistory = lineHistory.filter(characters => characters);
-		console.log('the previous history is', lineHistory.reverse());
+		//const result = words.filter(word => word.length > 6);
+		
+    // Clean up the parsed query array into a useable history array
+    lineHistory = lineHistory.filter(characters => characters); // Filter out the empty strings from the query array
+		lineHistory.reverse(); // The nested order is opposite from how it is typed
+		console.log('the previous history is', lineHistory);
 		console.log('the line is', line);
-    return lineHistory;
-		//console.log(text.split(/\s+/g));
-
-		// decrease line number UNTIL you find `
-		// if no backtick return []
-
-		// '       type'.split(' ') => ['', '', '', '', 'type']
-		//'pokemon {type { electric {} moves {}}}'.split(/\s+/g); // => ['pokemon', '{}']
-		
-		//for (let i = 0; i < text.length; i++) {
-		//let query = `pokemon {}`
-		
-			
-		//}
-
-		// find ` =  let query = `something`
-		// `my name is ${name}`
-		//define all strings from ` 
-
-		// Find start ` and end `
-		// Do we need to find an end? No 🤔
-	}
-
-	function parseQuery(text: string){
-		// pokemon type electric
+		history = lineHistory.map((str) => str.replace('{', '')); // Clean up the opening brackets | ex: ['{name'] or ['{']
+		history = history.filter((str) => str); // Filter out the empty strings from the history array
+		console.log('the current history is now', history);
 	}
 
 	//parse through text and create array element everytime for every word
@@ -415,7 +395,7 @@ export function deactivate() {}
 function traverseObject(obj: any, history: string[]): string[] {
 	// If our obj isn't an object we have hit the end of our traversal
 	if (typeof obj !== 'object') {
-		console.log('youve reached the end of the object!');
+		console.log('you\'ve reached the end of the object!');
 		return [];
 	}
 	// If we have hit the end of our history return the nested object keys
@@ -434,7 +414,22 @@ function traverseObject(obj: any, history: string[]): string[] {
 // splash site 
 // vscode publication
 // check to see if the cursor is even within a query
-
+// When the suggestion is another nested object show brackets. But when its an endpoint don't show brackets.
 
 //Question for the GQL experts
 // - Are dollar signs $ ever used in GQL?
+
+//modify the returned schemaObj
+function createNestedObj(obj: any) {
+    //loop through obj, for all valueObj, check if valueObj.key exist in obj.
+    //if so, valueObj.key = obj.key, then call modifyObj on valueObj
+    for (const key in obj) {
+        for (const valueKey in obj[key]) {
+            if (obj[key][valueKey] in obj) {
+                obj[key][valueKey] = obj[obj[key][valueKey]];
+                createNestedObj(obj[key]);
+            }
+        }
+    };
+    return obj;
+}
