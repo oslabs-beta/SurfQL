@@ -20,7 +20,11 @@ let schema: any = {
 			},
 			water: false
 		},
-		moves: "Tackle"
+		moves: {
+			fighting: {
+				id: 42
+			}
+		}
 	},
 	test2: {
 		tester: 'test',
@@ -199,7 +203,7 @@ export function activate(context: vscode.ExtensionContext) {
 				const objArr = traverseObject(schema, history);
 
 				objArr.forEach(e => {
-					let tempCompItem = new vscode.CompletionItem(e + ' (SurfQL)', vscode.CompletionItemKind.Keyword); // What is displayed
+					let tempCompItem = new vscode.CompletionItem(e, vscode.CompletionItemKind.Keyword); // What is displayed
 					tempCompItem.insertText = new vscode.SnippetString('\n' + indentation + e + '${0}\n'); // What is added
 					// tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
 					suggestions.push(tempCompItem);
@@ -243,68 +247,192 @@ export function activate(context: vscode.ExtensionContext) {
 		const line: string = e.document.lineAt(lineNumber).text;
 		console.log('row', lineNumber, 'column', characterNumber);
 		e.document.positionAt;
-		
-		// figure out way after determing cursor position
-		// to navigate left and right until hitting backtick `
-		/*
 
-		['pokemon','type','moves'] pokemon.moves
+		const messyHistory: string[] = parseQuery(lineNumber, characterNumber); // Parse the document into an array
+		const formattedHistory: string[] = fixBadFormatting(messyHistory); // Stimulate spacing around brackets/parentheses
+		const cleanHistory: string[] = ignoreParentheses(formattedHistory); // Ignore the parentheses and their contents
+		const cleanerHistory: string[] = filterNestedPaths(cleanHistory); // Ignore nested objects that invalidate the path
+		const validHistory: string[] = filterFlatPaths(cleanerHistory); // Ignore properties that aren't part of the history
+		updateHistory(validHistory);
+		
+		// How to ignore other paths when creating a history to the cursor?
+		/*
 			const query = `
 				pokeQuery {
 					pokemon {
-						type {
-							(how to suggest here)
+						type(first: 10) {
+							how to suggest here when the trigger character wasn't typed?
+							- When an auto-suggestion was made but not chosen...
+							- ...but it was manually started to get typed out
+							- Example: f -> fire | flying | fighting (all start with 'f')
 						}
 						moves {
 							if you see a closing bracket
 							ignore the next opening bracket moving bkwrds
 						}
+						id
 						nest3 {
-
+							if you see a flat property
+							ignore it
 						}
 					}
 				}
 			`
 		*/
-
-		currentQuery(lineNumber, characterNumber);
+		// For a nested object:
+		// - This is determined by finding a closing bracket
+		// - Ignore everything from the closing bracket to the next opening bracket + the preceeding word
+		// For a flat property:
+		// - Ignore it if there is no opening bracket between you and it
+		// - This may include it being standalone: '{' or attached to a word: 'pokemon{'
+		// Approach:
+		// - After line history has been created
+		// - Filter out all empty strings
+		// - Going backwards, determine the validity considering either scenario mentioned above
 
 		/**
-		 * Parses the document returning query information
-		 * @param lineNumber lists the VSCode line [index 0] the user is on
-		 * @param cursorLocation a number representing the cursor location
-		 * @return nothing but re-declares history
+		 * Parses the document returning an array of words/symbols
+		 * @param lineNumber Lists the VSCode line [index 0] the user is on.
+		 * @param cursorLocation A number representing the cursor location.
+		 * @return Words/symbols from the start of the query to the cursor
 		 */
-		function currentQuery(lineNumber: number, cursorLocation:number): void {
-			let lineHistory: string[] = [];
+		function parseQuery(lineNumber: number, cursorLocation:number): string[] {
+			let messyHistory: string[] = [];
 			let line: string = e.document.lineAt(lineNumber).text;
-			// Cut off everything after the cursor
-			line = line.slice(0, cursorLocation + 1);
+			line = line.slice(0, cursorLocation + 1); // Ignore everything after the cursor
 
-			// Iterate through the lines of the file (starting from the cursor moving to the start of the file)
-			while(lineNumber >= 0) {
+			// Create an array of words (and occasional characters such as: '{')
+			// Iterate through the lines of the file (starting from the cursor moving up the file)
+			while (lineNumber >= 0) {
 				// When the start of the query was found: This is the last loop
-				if(line.includes('`')) {
+				if (line.includes('`')) {
 					lineNumber = -1; // Set line number to -1 to end the loop
 					// Slice at the backtick
 					const startOfQueryIndex = line.indexOf('`');
 					line = line.slice(startOfQueryIndex+1);
 				}
 				
-				lineHistory.push(...line.split(/\s+/g).reverse());
+				messyHistory.push(...line.split(/\s+/g).reverse());
 				lineNumber--;
 				if (lineNumber >= 0) {
 					line = e.document.lineAt(lineNumber).text;
 				}
 			}
 			
-			//const result = words.filter(word => word.length > 6);
-			
 			// Clean up the parsed query array into a useable history array
-			lineHistory = lineHistory.filter((str) => str); // Filter out the empty strings from the query array
-			lineHistory.reverse(); // The nested order is opposite from how it is typed
-			console.log('the line is', line);
-			history = lineHistory.map((str) => str.replace('{', '')); // Clean up the opening brackets | ex: ['{name'] or ['{']
+			messyHistory = messyHistory.filter((str) => str); // Filter out the empty strings from the query array
+			messyHistory.reverse(); // The nested order is opposite from how it is typed
+			
+			console.log('Messy History:', messyHistory.join(' -> ') || 'empty...');
+			return messyHistory;
+		}
+
+		/**
+		 * Fixes cases where the words within the array are attached to the brackets/parentheses.
+		 * @param messyHistory 
+		 * @return An array of words with the brackets and parentheses detached.
+		 */
+		function fixBadFormatting(messyHistory: string[]): string[] {
+			return messyHistory.reduce((relevant: string[], word: string) => {
+				let reformedWord = ''; // Will hold the words as they are re-formed
+				for (const char of word) {
+					if (/{|}|\(|\)/.test(char)) { // Test if char is '{', '}', '(', or ')'
+						if (reformedWord) {
+							relevant.push(reformedWord); // If a word is already formed then push that as its own word
+							reformedWord = ''; // Reset the word
+						}
+						relevant.push(char); // Add the '{', '}', '(', or ')'
+					} else {
+						reformedWord += char; // Keep building upon the current word
+					}
+				}
+				if (reformedWord) {
+					relevant.push(reformedWord); // Before moving on, check to see if there is a word that needs to get added
+				}
+				return relevant; // Return the total words so far
+			}, [] as string[]);
+		}
+
+		/**
+		 * Parenthesis don't affect the history. Remove them from the array so they don't interfere with the path.
+		 * @param formattedHistory An unfiltered array that potentially contains parentheses.
+		 * @return An array without parentheses and inner contents of parentheses.
+		 */
+		function ignoreParentheses(formattedHistory: string[]): string[] {
+			console.log('Formatted History:', formattedHistory.join(' -> ') || 'empty...');
+			const cleanHistory: string[] = []; // The return result of only relevant strings
+			let ignoring: boolean = false; // The status of the filter/loop process
+			for (const word of formattedHistory) {
+				if (ignoring) {
+					// Ignore from an opening '(' to a closing ')'
+					if (word === ')') {
+						ignoring = false;
+					}
+				} else {
+					if (word === '(') {
+						// Check for an opening '('
+						ignoring = true;
+					} else {
+						// Preserve the word
+						cleanHistory.push(word);
+					}
+				}
+			}
+			return cleanHistory;
+		}
+
+		/**
+		 * Filter out nested side paths from the history array.
+		 * @param cleanHistory An array with a valid history path that needs to be isolated.
+		 * @return An array without nested side paths.
+		 */
+		function filterNestedPaths(cleanHistory: string[]): string[] {
+			console.log('Clean History:', cleanHistory.join(' -> ') || 'empty...');
+
+			const newHistory: string[] = [];
+			
+			let ignore: number = 0;
+			for (let i = cleanHistory.length - 1; i >= 0; i--) {
+				const word = cleanHistory[i];
+				if (word === '}') {
+					ignore++;
+				} else if (ignore) {
+					ignore--;
+					i--;
+				} else {
+					newHistory.push(word);
+				}
+			}
+
+			newHistory.reverse(); // Reverse the array since it was filtered through in reverse order
+			return newHistory;
+		}
+
+		/**
+		 * Filter out properties that don't connect the cursor to the start of the query.
+		 * @param cleanerHistory An array with a valid history path that needs to be isolated.
+		 * @return An array without side properties.
+		 */
+		function filterFlatPaths(cleanerHistory: string[]): string[] {
+			console.log('Cleaner History:', cleanerHistory.join(' -> ') || 'empty...');
+			const validHistory: string[] = [];
+			cleanerHistory.forEach((word: string, i: number) => {
+				// Make sure the current word isn't a property.
+				if (cleanerHistory[i + 1] === '{') {
+					validHistory.push(word); // Add as a valid word
+				}
+			});
+			return validHistory;
+		}
+
+		/**
+		 * Cleans up an array to be used as the new history.
+		 * @param validHistory An array representing the words within a query that connect the start of a query to the cursor.
+		 * @return Nothing... but history is re-declared.
+		 */
+		function updateHistory(validHistory: string[]): void {
+			console.log('Valid History:', validHistory.join(' -> ') || 'empty...');
+			history = validHistory.map((str) => str.replace('{', '')); // Clean up the opening brackets. Ex: '{name' or '{'
 			history = history.filter((str) => str); // Filter out the empty strings from the history array
 			console.log('History:', history.join(' -> ') || 'empty...');
 		}
