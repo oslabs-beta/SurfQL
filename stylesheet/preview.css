@@ -1,39 +1,15 @@
 
 
 #board {
-    border: 2px solid white
+    border: 2px solid white;
+    background-color: rgb(37, 37, 37);
 };
 
 
-.fieldType {
-    /* border: 1px solid rgb(252, 252, 252);
-    background-image: #9f2712;
-    border-radius: 10;
-    padding: 16px 18px 15px;
-    margin: 4px 2px;
-    margin-bottom: 5px;
-    margin-right: 20px;
-    position: relative; */
-    font-size: 50px;
-    font-weight: 500;
-    /* display: block;
-    height: fit-content;
-    width: fit-content; */
-
-}
+/* For some reason, the root buttons do not keep styling without this queryType class listed below, even if it is empty */
 
 .queryType {
-    border: 1px solid white;
-    border-radius: 10;
-    height: 15px;
-    width: 50px;
-    margin-right: 10px;
-    font-size: 12px;
-    font-weight: 500;
-    color: #fff;
-    cursor: pointer;
-    background-image: linear-gradient(to right,#e052a0,#f15c41)!important;
-    padding: 16px 18px 15px;
+  color: #121212;
 }
 
 .queryType-alt span {
@@ -55,26 +31,20 @@
   padding: .7rem .8rem;
   text-align: center;
   text-decoration: none;
-  transition: box-shadow .2s,-webkit-box-shadow .2s;
   white-space: nowrap;
   border: 0;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-}
+} 
 
 
 .queryType-alt {
     list-style-type:none;
       border-radius: 10;
-      /* height: 15px; */
-      width: 50px;
+       width: 50px;
       font-size: 12px;
   }
-  /* .queryType-alt span {
-    display: block;
-    padding: 3px 1px;
-  } */
+
+  
+
   li.fieldType-alt {
       width: 30px;
       position:relative
@@ -97,34 +67,16 @@
       border-left: 1px solid rgb(255, 255, 255);
       height: 20px;
   }
+
   ul.fieldGroup {
   margin: 4px 5px 5px -15px;
   }
+
   .tree > ul {
     padding: 0;
   }
 
 
-
-/* CSS */
-/* .button-74 {
-  background-color: #fbeee0;
-  border: 2px solid #422800;
-  border-radius: 30px;
-  box-shadow: #422800 4px 4px 0 0;
-  color: #422800;
-  cursor: pointer;
-  display: inline-block;
-  font-weight: 600;
-  font-size: 18px;
-  padding: 0 18px;
-  line-height: 50px;
-  text-align: center;
-  text-decoration: none;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-} */
 
 .button:hover {
   background-color: #fff;

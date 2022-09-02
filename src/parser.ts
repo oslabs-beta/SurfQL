@@ -80,6 +80,21 @@ function parsingTypeInfo(string: string) {
 
 export default function parser(text: string) {
   //split the text into array lines
+
+  // Creating helper function
+  function typeSlicer(strEnd: number, cleanline: string) {
+    parsing = true;
+    const variable = rootBuilder(cleanline.slice(strEnd));
+    const newRoot: Root = new Root(variable);
+    root.push(newRoot);
+    curRoot = variable;
+    returnObj[curRoot] = {};
+  }
+
+  const typeIndex = 4;
+  const inputIndex = 5;
+  const interfaceIndex = 9;
+
   const arr = text.split(/\r?\n/);
   //declare status for building, only start reading when type starts
   let parsing = false;
@@ -95,27 +110,12 @@ export default function parser(text: string) {
   let curRoot: string = "";
   arr.forEach((line) => {
     const cleanline = line.trim();
-    if (cleanline.slice(0, 4) === "type") {
-      parsing = true;
-      const variable = rootBuilder(cleanline.slice(4));
-      const newRoot: Root = new Root(variable);
-      root.push(newRoot);
-      curRoot = variable;
-      returnObj[curRoot] = {};
+    if (cleanline.slice(0, typeIndex) === "type") {
+      typeSlicer(typeIndex, cleanline);
     } else if (cleanline.slice(0, 5) === "input") {
-      parsing = true;
-      const variable = rootBuilder(cleanline.slice(5));
-      const newRoot: Root = new Root(variable);
-      root.push(newRoot);
-      curRoot = variable;
-      returnObj[curRoot] = {};
+      typeSlicer(inputIndex, cleanline);
     } else if (cleanline.slice(0, 9) === "interface") {
-      parsing = true;
-      const variable = rootBuilder(cleanline.slice(10));
-      const newRoot: Root = new Root(variable);
-      root.push(newRoot);
-      curRoot = variable;
-      returnObj[curRoot] = {};
+      typeSlicer(interfaceIndex, cleanline);
     } else if (cleanline[0] === "}" || cleanline.trim().length === 0) {
       //do nothing
     } else {
