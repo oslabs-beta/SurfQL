@@ -1,0 +1,42 @@
+type schema {
+  query: Query
+  mutation: Mutation
+}
+
+type Query {
+  field: String!
+}
+
+interface Pokemon {
+  id: Int!
+  name: String!
+  weight: PokemonDimension!
+  height: PokemonDimension!
+  maxHP: Int
+  attacks: PokemonAttack
+}
+
+type PokemonDimension {
+  minimum: String
+  maximum: String
+}
+
+type PokemonAttack {
+  fast: [Attack]
+  special: [Attack]
+}
+
+type Attack {
+  name: String
+  id: Int
+  damage: Int
+}
+
+input AttributesInput {
+  weight: PokemonDimension!
+  height: PokemonDimension!
+}
+
+type Mutation {
+  updateAttributes(input: AttributesInput!)
+}
