@@ -164,8 +164,8 @@ export function activate(context: vscode.ExtensionContext) {
 			commitCharacterCompletion.documentation = new vscode.MarkdownString('Press `.` to get `console.`');
 
 			// a completion item that retriggers IntelliSense when being accepted,
-			// the `command`-property is set which the editor will execute after 
-			// completion has been inserted. Also, the `insertText` is set so that 
+			// the `command`-property is set which the editor will execute after
+			// completion has been inserted. Also, the `insertText` is set so that
 			// a space is inserted after `new`
 			const commandCompletion = new vscode.CompletionItem('new');
 			commandCompletion.kind = vscode.CompletionItemKind.Keyword;
@@ -457,7 +457,7 @@ const getWebViewContent = (scriptSrc: String, styleSrc: String) => {
 						<link rel="stylesheet" href="${styleSrc}" />
 					</head>
 					<body>
-						<h1>Schema Name</h1>
+						<h1>Schema Hierarchy</h1>
 						<div id='board'>Build a Nice Tree Structure</div>
 						<script>
 							document.addEventListener('DOMcontentLoaded', () => {
