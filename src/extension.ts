@@ -8,31 +8,35 @@ import * as path from 'path';
 import * as fs from 'fs';
 import parser from "./parser";
 
+// let schema: any = {
+// 	pokemon: {
+// 		name: "Pikachu",
+// 		type: {
+// 			electric: {
+// 				shocking: true,
+// 				treasureChest: {
+// 					treasure: 'yarr'
+// 				}
+// 			},
+// 			water: false
+// 		},
+// 		moves: {
+// 			fighting: {
+// 				id: 42
+// 			}
+// 		}
+// 	},
+// 	test2: {
+// 		tester: 'test',
+// 	},
+// 	test3: {
+// 		works: true
+// 	}
+// };
+
 let schema: any = {
-	pokemon: {
-		name: "Pikachu",
-		type: {
-			electric: {
-				shocking: true,
-				treasureChest: {
-					treasure: 'yarr'
-				}
-			},
-			water: false
-		},
-		moves: {
-			fighting: {
-				id: 42
-			}
-		}
-	},
-	test2: {
-		tester: 'test',
-	},
-	test3: {
-		works: true
-	}
-};
+	'Import a schema file...': 0
+}
 
 let history: any[] = [];
 const triggerCharacters: string[] = ['`', '{'];
