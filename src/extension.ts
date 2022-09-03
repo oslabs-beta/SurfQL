@@ -159,7 +159,7 @@ export function activate(context: vscode.ExtensionContext) {
 			// be inserted and then the character will be typed.
 
 
-	
+
 
 
 			//definitions
@@ -167,7 +167,7 @@ export function activate(context: vscode.ExtensionContext) {
 			//example: if you define completion item as chicken and type "chi" it will show "chicken"
 
 			//commitCharacters is the string that triggers the ???
-			
+
 
 
 
@@ -178,8 +178,8 @@ export function activate(context: vscode.ExtensionContext) {
 			commitCharacterCompletion.documentation = new vscode.MarkdownString('Press `.` to get `console.`');
 
 			// a completion item that retriggers IntelliSense when being accepted,
-			// the `command`-property is set which the editor will execute after 
-			// completion has been inserted. Also, the `insertText` is set so that 
+			// the `command`-property is set which the editor will execute after
+			// completion has been inserted. Also, the `insertText` is set so that
 			// a space is inserted after `new`
 			const commandCompletion = new vscode.CompletionItem('new');
 			commandCompletion.kind = vscode.CompletionItemKind.Keyword;
@@ -199,8 +199,8 @@ export function activate(context: vscode.ExtensionContext) {
 		'javascript',
 		{
 			provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
-				
-			
+
+
 				//Initial activation should be via back tick, but ALL further queries should NOT be using this
 				const linePrefix = document.lineAt(position).text.substr(0, position.character);
 				if (!linePrefix.includes("`")) {
@@ -230,17 +230,17 @@ export function activate(context: vscode.ExtensionContext) {
 				 //history.push(queryLevel); [Pokemon, Moves]
 					console.log('we are on level', level);
 					let objArr = traverseObject(schema,history);
-					
+
 				objArr.forEach(e => {
 					let tempCompItem = new vscode.CompletionItem(e + " ", vscode.CompletionItemKind.Keyword);
 					tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
 					suggestions.push(tempCompItem);
-					
+
 					//console.log(suggestions);
 					queryIntiate = false;
 					queryLevel = e ;
 				});
-				
+
 				level++;
 				return suggestions;
 			}
@@ -256,8 +256,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 //step 1: Parse the current query and determine where the user is
 
-//we need to create an event listener of some sort 
-//it needs to read the current text 
+//we need to create an event listener of some sort
+//it needs to read the current text
 
 // "pokemon { type {} }"
 // parse the above into our history array: ['pokemon', 'type']
@@ -265,7 +265,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 // if(pokequery[history[0]]) -> iterate -> pokequery[typ] --> undefined []
 
-//step 2: Develop function that will determine the appropriate query to suggest 
+//step 2: Develop function that will determine the appropriate query to suggest
 //once the user has backspaced enough
 // e.g: Pokemon {type: {ele }} = no suggestion
 // e.g: Pokemon {type: { }} = suggest electric
@@ -283,7 +283,7 @@ vscode.workspace.onDidChangeTextDocument((e) => {
 	console.log('the character number is', characterNumber);
 	//console.log('the position is', new vscode.Position(lineNumber, 20));
 	e.document.positionAt;
-	
+
 	// figure out way after determing cursor position
 	// to navigate left and right until hitting backtick `
 	/*
@@ -330,16 +330,16 @@ vscode.workspace.onDidChangeTextDocument((e) => {
 				const startOfQueryIndex = line.indexOf('`');
 				line = line.slice(startOfQueryIndex+1);
 			}
-			
+
 			lineHistory.push(...line.split(/\s+/g).reverse());
 			lineNumber--;
 			if (lineNumber >= 0) {
 				line = e.document.lineAt(lineNumber).text;
 			}
 		}
-    
+
 		//const result = words.filter(word => word.length > 6);
-		
+
     // Clean up the parsed query array into a useable history array
     lineHistory = lineHistory.filter(characters => characters); // Filter out the empty strings from the query array
 		lineHistory.reverse(); // The nested order is opposite from how it is typed
@@ -371,7 +371,7 @@ const getWebViewContent = (scriptSrc: String, styleSrc: String) => {
 						<link rel="stylesheet" href="${styleSrc}" />
 					</head>
 					<body>
-						<h1>Schema Name</h1>
+						<h1>Schema Hierarchy</h1>
 						<div id='board'>Build a Nice Tree Structure</div>
 						<script>
 							document.addEventListener('DOMcontentLoaded', () => {
@@ -411,7 +411,7 @@ function traverseObject(obj: any, history: string[]): string[] {
 //Out-of-scope features pre-presentation
 // Live-share compatibility (usability)
 // ability to detect ONLY graphql query vs parsing the whole document (efficiency)
-// splash site 
+// splash site
 // vscode publication
 // check to see if the cursor is even within a query
 // When the suggestion is another nested object show brackets. But when its an endpoint don't show brackets.
