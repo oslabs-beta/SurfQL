@@ -1,4 +1,4 @@
-const { gql } = require('apollo-server');
+const { gql } = require("apollo-server");
 // // typeDefs is a required argument and should be a GraphQL schema language string or array of GraphQL schema language strings or a function that takes no arguments and returns an array of GraphQL schema language strings. The order of the strings in the array is not important, but it must include a schema definition.
 const typeDefs = gql`
   type User {
@@ -49,12 +49,3 @@ const typeDefs = gql`
   # }
 `;
 module.exports = { typeDefs };
-
-
-
-
-
-
-
-
-
