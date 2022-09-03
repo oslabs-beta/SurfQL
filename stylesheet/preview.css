@@ -16,7 +16,7 @@
   list-style-type:none;
   align-items: center;
   background-color: #fff;
-  border-radius: 12px;
+  border-radius: 4px;
   box-sizing: border-box;
   color: #121212;
   cursor: pointer;
@@ -29,7 +29,7 @@
   line-height: 1;
   margin: 5px;
   outline: none;
-  padding: 0.4em 0.2em;
+  padding: .7em .4em;
   text-align: center;
   text-decoration: none;
   white-space: nowrap;
