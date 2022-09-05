@@ -133,6 +133,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	
 	// Each provider is a set of rules, for what needs to be typed, to create suggestions
+	// Providers are similar to event listeners
 	const exampleProvider: vscode.Disposable = vscode.languages.registerCompletionItemProvider('javascript', {
 
 		provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext) {
@@ -216,7 +217,7 @@ export function activate(context: vscode.ExtensionContext) {
 				return suggestions;
 			}
 		},
-		...triggerCharacters
+		...triggerCharacters // => ['{', '`']
 	);
 
 	context.subscriptions.push(exampleProvider, suggestionProvider);
@@ -395,20 +396,22 @@ export function activate(context: vscode.ExtensionContext) {
 
 			const newHistory: string[] = [];
 			
-			let ignore: number = 0;
+			let ignore: number = 0; // The amount of nested side paths we are within at a given point
+			// Loop through the array backwards
 			for (let i = cleanHistory.length - 1; i >= 0; i--) {
-				const word = cleanHistory[i];
+				const word = cleanHistory[i]; // The current array element
 				if (word === '}') {
-					ignore++;
+					ignore++; // When we find a closing bracket ignore everything up to the opening bracket
 				} else if (ignore) {
-					ignore--;
-					i--;
+					if (word === '{') {
+						i--; // When we find the opening bracket ignore the following word
+						ignore--; // Indicate we have escaped a nested side path
+					}
 				} else {
-					newHistory.push(word);
+					newHistory.unshift(word); // The current word is valid for this process
 				}
 			}
 
-			newHistory.reverse(); // Reverse the array since it was filtered through in reverse order
 			return newHistory;
 		}
 
