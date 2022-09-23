@@ -10,6 +10,10 @@
 //return field info.
 //return an object for autocomplete and an array for display (can definitely simplify)
 
+//Parser V3:
+//Takes in Mutation and Query type.
+//Handling Interface
+
 class Root {
   name: string;
   fields: {};
@@ -82,11 +86,21 @@ export default function parser(text: string) {
   //split the text into array lines
 
   // Creating helper function
+  let currentArr = 'root';
   function typeSlicer(strEnd: number, cleanline: string) {
     parsing = true;
     const variable = rootBuilder(cleanline.slice(strEnd));
     const newRoot: Root = new Root(variable);
-    root.push(newRoot);
+    if (variable.toLowerCase() === 'query') {
+      queryMutation.push(newRoot);
+      currentArr = 'schema';
+    } else if (variable.toLowerCase() === 'mutation') {
+      queryMutation.push(newRoot);
+      currentArr = 'schema';
+    } else {
+      root.push(newRoot);
+      currentArr = 'root';
+    }
     curRoot = variable;
     returnObj[curRoot] = {};
   }
@@ -103,8 +117,7 @@ export default function parser(text: string) {
   //declare root array to story the root queries
   const root: Array<Root> = [];
   //declare query type and mutation type
-  const query = [];
-  const mutation = [];
+  const queryMutation: Array<Root> = [];
   //read through line by line, conditional check
   const returnObj = {} as any;
   let curRoot: string = "";
@@ -122,12 +135,18 @@ export default function parser(text: string) {
       if (parsing) {
         const [variable, typeInfo] = fieldBuilder(cleanline);
         if (variable && typeInfo) {
-          root[root.length - 1].fields[variable] = parsingTypeInfo(typeInfo);
-          returnObj[curRoot][variable] = parsingTypeInfo(typeInfo);
+          if (currentArr === 'schema') {
+            queryMutation[queryMutation.length - 1].fields[variable] = parsingTypeInfo(typeInfo);
+          // } else if (currentArr === 'mutation') {
+          //   mutation[mutation.length - 1].fields[variable] = parsingTypeInfo(typeInfo);
+          } else {
+            root[root.length - 1].fields[variable] = parsingTypeInfo(typeInfo);
+            returnObj[curRoot][variable] = parsingTypeInfo(typeInfo);
+          }
         }
       }
     }
   });
-  console.log(root);
-  return [root, returnObj];
+  console.log(root, queryMutation);
+  return [root, queryMutation, returnObj];
 }

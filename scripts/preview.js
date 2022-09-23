@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const board = document.querySelector("#board");
 
   //add a static message
-  board.innerHTML = "Grow a beautiful tree";
+  //board.innerHTML = "Grow a beautiful tree";
 
   const vscode = acquireVsCodeApi();
   function getSchematext() {
@@ -14,7 +14,16 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
   getSchematext();
+
+  const refreshBtn = document.querySelector("#refresh");
+  refreshBtn.addEventListener('click', (e) => {
+    console.log('Refresh->,', e);
+    board.innerHTML = '';
+    getSchematext();
+  });
 });
+
+
 
 //add eventListener to the window
 window.addEventListener("message", (event) => {
@@ -24,15 +33,15 @@ window.addEventListener("message", (event) => {
   //call parser
   if (message.command === "sendSchemaInfo") {
     // const [schemaArr, returnObj] = parser(text);
-    const schemaArr = JSON.parse(message.text);
-    console.log("here it comes", schemaArr);
-    draw(schemaArr);
+    const [schemaArr, queryMutation] = JSON.parse(message.text);
+    console.log("here it comes", [schemaArr, queryMutation]);
+    draw(queryMutation,schemaArr);
     return;
   }
 });
 
 // //display function
-function draw(array) {
+function draw(qmArr, schemaArr) {
   const arrayTypes = ["Int", "Float", "String", "Boolean", "ID"];
   const tree = document.createElement("div");
   tree.setAttribute("class", "tree");
@@ -41,7 +50,7 @@ function draw(array) {
   const treeUL = document.createElement("ul");
   tree.appendChild(treeUL);
   //for every root in array we create a list item
-  array.forEach((root) => {
+  qmArr.forEach((root) => {
     const li = document.createElement("li");
     li.setAttribute("data-fields", JSON.stringify(root.fields));
     li.setAttribute("class", "queryType-alt");
@@ -69,11 +78,11 @@ function draw(array) {
           const [field, fieldtype] = parent.textContent.split(":");
           console.log(field, fieldtype);
           //if not, return root.field, add nested structure
-          console.log(array);
-          array.forEach((e) => {
+          // console.log(array);
+          schemaArr.forEach((e) => {
             if (fieldtype === e.name) {
               console.log("e", e);
-              drawNext(array, btn, e); //array, btn buyer
+              drawNext(schemaArr, btn, e); //array, btn buyer
             }
           });
         });

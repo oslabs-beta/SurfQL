@@ -115,12 +115,12 @@ export function activate(context: vscode.ExtensionContext) {
         console.log("message1", message);
         if (message.command === "get schema text") {
           let schemaText = fs.readFileSync(schemaFilePath, "utf8");
-          const [schemaArr, returnObj] = parser(schemaText);
+          const [schemaArr, queryMutation, returnObj] = parser(schemaText);
           console.log(returnObj);
 		  schema = createNestedObj(returnObj);
           panel.webview.postMessage({
             command: "sendSchemaInfo",
-            text: JSON.stringify(schemaArr),
+            text: JSON.stringify([schemaArr,queryMutation]),
           });
         }
         return;
@@ -461,7 +461,8 @@ const getWebViewContent = (scriptSrc: String, styleSrc: String) => {
 					</head>
 					<body>
 						<h1>Schema Hierarchy</h1>
-						<div id='board'>Build a Nice Tree Structure</div>
+						<button id='refresh' type='button'>Refresh</button>
+						<div id='board'></div>
 						<script>
 							document.addEventListener('DOMcontentLoaded', () => {
 								const vscode = acquireVsCodeApi();
