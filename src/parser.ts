@@ -21,10 +21,19 @@ class Root {
     this.name = val;
     this.fields = {} as any;
   }
-}
+};
+
+class Enum {
+  name: string;
+  value: string[];
+  constructor(val: string) {
+    this.name = val;
+    this.value = [];
+  }
+};
 
 //build root variable
-function rootBuilder(string: string) {
+function nameBuilder(string: string) {
   const cleanstr = string.trim();
   let variable = "";
   for (let i = 0; i < cleanstr.length; i++) {
@@ -43,7 +52,6 @@ function fieldBuilder(string: string) {
     // it may be a resolver function that contains '(' and ')'
     let resArr = string.split("(");
     const variable = `${resArr[0].trim()}()`;
-    //console.log("variable", variable)
     //split again by closing ) and save the second part
     const lastIndex = string.lastIndexOf(":");
     const typeInfo = `${string.slice(lastIndex + 1)}`;
@@ -80,26 +88,41 @@ function parsingTypeInfo(string: string) {
     parsedType += cleanStr[i++];
   }
   return parsedType;
-}
+};
+
+//helper function to check para.
+
 
 export default function parser(text: string) {
+
+
   //split the text into array lines
 
-  // Creating helper function
+  // Creating helper to check where to push the Object. if it is query or mutation, push to queryMutation
   let currentArr = 'root';
+
+  //declare status for parsing type, interface input
+  let parsing = false;
+  //declare status for checking parsing Enum
+  let parsingEnum = false;
   function typeSlicer(strEnd: number, cleanline: string) {
-    parsing = true;
-    const variable = rootBuilder(cleanline.slice(strEnd));
-    const newRoot: Root = new Root(variable);
-    if (variable.toLowerCase() === 'query') {
-      queryMutation.push(newRoot);
-      currentArr = 'schema';
-    } else if (variable.toLowerCase() === 'mutation') {
-      queryMutation.push(newRoot);
-      currentArr = 'schema';
-    } else {
-      root.push(newRoot);
-      currentArr = 'root';
+    const variable = nameBuilder(cleanline.slice(strEnd));
+    if (parsing) {
+      const newRoot: Root = new Root(variable);
+      if (variable.toLowerCase() === 'query') {
+        queryMutation.push(newRoot);
+        currentArr = 'queryMutation';
+      } else if (variable.toLowerCase() === 'mutation') {
+        queryMutation.push(newRoot);
+        currentArr = 'queryMutation';
+      } else {
+        root.push(newRoot);
+        currentArr = 'root';
+      }
+    } else if (parsingEnum) {
+      const newEnum: Enum = new Enum(variable);
+      enumArr.push(newEnum);
+      currentArr = 'enum';
     }
     curRoot = variable;
     returnObj[curRoot] = {};
@@ -108,45 +131,66 @@ export default function parser(text: string) {
   const typeIndex = 4;
   const inputIndex = 5;
   const interfaceIndex = 9;
+  const enumIndex = 4;
 
   const arr = text.split(/\r?\n/);
-  //declare status for building, only start reading when type starts
-  let parsing = false;
+
   //declare schema types
   const schema = [];
   //declare root array to story the root queries
   const root: Array<Root> = [];
   //declare query type and mutation type
   const queryMutation: Array<Root> = [];
+  //declare a enum array
+  const enumArr: Array<Enum> = [];
   //read through line by line, conditional check
   const returnObj = {} as any;
   let curRoot: string = "";
   arr.forEach((line) => {
     const cleanline = line.trim();
-    if (cleanline.slice(0, typeIndex) === "type") {
-      typeSlicer(typeIndex, cleanline);
-    } else if (cleanline.slice(0, 5) === "input") {
-      typeSlicer(inputIndex, cleanline);
-    } else if (cleanline.slice(0, 9) === "interface") {
-      typeSlicer(interfaceIndex, cleanline);
-    } else if (cleanline[0] === "}" || cleanline.trim().length === 0) {
-      //do nothing
-    } else {
-      if (parsing) {
+    if (parsingEnum) {
+      if (cleanline[0] === "}") {
+        parsingEnum = false; //is there situation people put {} in the schema??
+      } else if (cleanline.trim().length === 0) {
+        //do nothing
+      } else {
+        if (currentArr === 'enum') {
+          enumArr[enumArr.length - 1].value.push(cleanline);
+        }
+      }
+    }
+    if (parsing) {
+      if (cleanline[0] === "}") {
+        parsing = false;
+      } else if (cleanline.trim().length === 0) {
+        //do nothing
+      } else {
         const [variable, typeInfo] = fieldBuilder(cleanline);
         if (variable && typeInfo) {
-          if (currentArr === 'schema') {
+          if (currentArr === 'queryMutation') {
             queryMutation[queryMutation.length - 1].fields[variable] = parsingTypeInfo(typeInfo);
-          // } else if (currentArr === 'mutation') {
-          //   mutation[mutation.length - 1].fields[variable] = parsingTypeInfo(typeInfo);
           } else {
             root[root.length - 1].fields[variable] = parsingTypeInfo(typeInfo);
             returnObj[curRoot][variable] = parsingTypeInfo(typeInfo);
           }
         }
       }
-    }
+    } else {
+      if (cleanline.slice(0, typeIndex) === "type") {
+        parsing = true;
+        typeSlicer(typeIndex, cleanline);
+      } else if (cleanline.slice(0, inputIndex) === "input") {
+        parsing = true;
+        typeSlicer(inputIndex, cleanline);
+      } else if (cleanline.slice(0, interfaceIndex) === "interface") {
+        parsing = true;
+        typeSlicer(interfaceIndex, cleanline);
+      } else if (cleanline.slice(0, enumIndex) === "enum") {
+        parsingEnum = true;
+        typeSlicer(enumIndex, cleanline);
+      }
+    };
   });
-  console.log(root, queryMutation);
-  return [root, queryMutation, returnObj];
-}
+  console.log(root, queryMutation, enumArr);
+  return [root, queryMutation, enumArr, returnObj];
+};

@@ -33,8 +33,8 @@ window.addEventListener("message", (event) => {
   //call parser
   if (message.command === "sendSchemaInfo") {
     // const [schemaArr, returnObj] = parser(text);
-    const [schemaArr, queryMutation] = JSON.parse(message.text);
-    console.log("here it comes", [schemaArr, queryMutation]);
+    const [schemaArr, queryMutation, enumArr] = JSON.parse(message.text);
+    console.log("here it comes", [schemaArr, queryMutation, enumArr]);
     draw(queryMutation,schemaArr);
     return;
   }
