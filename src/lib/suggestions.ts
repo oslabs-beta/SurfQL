@@ -7,49 +7,76 @@ import { indentation } from '../constants';
  * @returns VSCode suggestions 
  */
 export function offerSuggestions(branch: string[]): CompletionItem[] {
-    const suggestions: CompletionItem[] = [];
+    let suggestions: CompletionItem[] = [];
     branch.forEach((option: string) => {
         let tempCompItem = new CompletionItem(option, CompletionItemKind.Keyword); // What is displayed
         tempCompItem.insertText = new SnippetString('\n' + indentation + option + '${0}\n'); // What is added
         // tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
         suggestions.push(tempCompItem);
-    });
-    console.log('the suggestions are', suggestions)
+    }); 
     return suggestions;
 }
 
 /**
- * Traverses a schema to return the branches at a given level
- * @param obj Traditionally: the parsed query file.
+ * Traverses a schema (recursively) to return the branches at a given level
+ * @param schema The parsed schema file.
  * @param history An array representing the traversal path for the obj.
  * @returns The properties/keys at the end of the traversed object.
  */
-export function traverseSchema(obj: any, history: string[]): string[] {
-	// If our obj isn't an object we have hit the end of our traversal
-	if (typeof obj !== 'object') {
+export function traverseSchema(schema: any, history: string[]): string[] {
+    // If our obj isn't an object we have hit the end of our traversal
+	if (typeof schema !== 'object') {
+        //pokemon - type - electric
+        // Check if its incomplete (ex: na... -> name)
 		console.log('you\'ve reached the end of the object!');
 		return [];
+        // if its the last history word
+        // if it matches with anything else
+        // THEN give back: return Object.keys(schema);
 	}
 	// If we have hit the end of our history return the nested object keys
-  else if (history.length === 0) {
-		return Object.keys(obj);
+    else if (history.length === 0) {
+        // history: electr
+        // schema: { electric: { move } } 
+		return Object.keys(schema);
 	}
 	// Traverse until and end is reached
-  return traverseSchema(obj[history[0]], history.slice(1));
+  return traverseSchema(schema[history[0]], history.slice(1));
 };
 
+//TODO
+// Auto complete anywhere (no trigger characters needed)
+// Config file
+// Enable support for 'mutation' or 'query'
+
 /**
-		 * Parses the document returning an array of words/symbols
-		 * @param lineNumber Lists the VSCode line [index 0] the user is on.
-		 * @param cursorLocation A number representing the cursor location.
-         * @param document The document nested inside a vscode event
-		 * @return Words/symbols from the start of the query to the cursor
-		 */
+ * At any point in the query, this function will suggest/complete what the user typed based on the existing schema.
+ * @param schema
+ * @param history
+ * @return 
+ */
+export function autoCompleteAnywhere(schema : any, history: string[]) : CompletionItem[] {
+    //may require separate trigger character functionality
+    const currentSchemaBranch = traverseSchema(schema, history);
+	return offerSuggestions(currentSchemaBranch) as CompletionItem[];
+}
+
+/**
+ * Parses the document returning an array of words/symbols
+ * @param lineNumber Lists the VSCode line [index 0] the user is on.
+ * @param cursorLocation A number representing the cursor location.
+ * @param document The document nested inside a vscode event
+ * @return Words/symbols from the start of the query to the cursor
+ */
  export function parseQuery(lineNumber: number, cursorLocation:number, document: TextDocument ): string[] {
     let messyHistory: string[] = [];
     let line: string = document.lineAt(lineNumber).text;
     line = line.slice(0, cursorLocation + 1); // Ignore everything after the cursor
     const limit = 10; // Limits max amount of lines to process
+
+    //Goal: Limit the size of the history array that's storing sections/path of the file
+    //Ideation: We define a limit, the while loop will run
+    //Issue: there's no way to tell how long the line being pushed is
     
     // Create an array of words (and occasional characters such as: '{')
     // Iterate through the lines of the file (starting from the cursor moving up the file)
@@ -62,7 +89,21 @@ export function traverseSchema(obj: any, history: string[]): string[] {
             const startOfQueryIndex = line.indexOf('`');
             line = line.slice(startOfQueryIndex+1);
         }
-        
+
+        // Detect if the file is compressed into a one-line file.
+        console.log('the line length is currently', line.length)
+        // Exit early if the line is 1000+ characters.
+        if (line.length > 1000) {
+            console.log('Line limit', 1000, 'reached');
+            return ['Line limit reached','{'];
+            
+            // if (...) => display "line limit reached for query parsing"
+            //return auto suggest that says "limit reached"
+        }
+        // ...line.split() ==> array of strings separated by space
+        // tempHistory = ...line.split() -> tempHistory.filter()
+        // ` pokemon electric attack weight color candy
+
         messyHistory.push(...line.split(/\s+/g).reverse()); // Split into an array of words (splitting at each white space)
         lineNumber--;
         if (lineNumber >= 0) {

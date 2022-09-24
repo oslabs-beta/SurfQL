@@ -172,7 +172,22 @@ export function activate(context: vscode.ExtensionContext) {
 				// if (!linePrefix.includes("`")) {
 				// 	return undefined;
 				// }
+
+				// Need to code for instances with `query` before actual query
+				/* const QUERY_ALL_USERS = gql`
+  					query GetAllUsers {
+    				users {
+     				 id
+						name
+						age
+						username
+						nationality
+						}
+					}
+					`;
+				*/
 				const currentSchemaBranch = traverseSchema(schema, history);
+				//makesuggestion()
 				return offerSuggestions(currentSchemaBranch) as vscode.CompletionItem[];
 			}
 		},
@@ -183,10 +198,14 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 	vscode.workspace.onDidChangeTextDocument((e) => {
+
+		// name .... na...[na,] -> {
 		const lineNumber: number = e.contentChanges[0].range.start.line;
 		const characterNumber: number = e.contentChanges[0].range.start.character;
 		const line: string = e.document.lineAt(lineNumber).text;
 		console.log('row', lineNumber, 'column', characterNumber);
+
+		// Create a query detector function here
 
 		const messyHistory: string[] = parseQuery(lineNumber, characterNumber, e.document); // Parse the document into an array
 		const formattedHistory: string[] = fixBadFormatting(messyHistory); // Stimulate spacing around brackets/parentheses
@@ -194,6 +213,22 @@ export function activate(context: vscode.ExtensionContext) {
 		const cleanerHistory: string[] = filterNestedPaths(cleanHistory); // Ignore nested objects that invalidate the path
 		const validHistory: string[] = filterFlatPaths(cleanerHistory); // Ignore properties that aren't part of the history
 		history = updateHistory(validHistory);
+
+		// Provide suggestions
+		// function:
+			// const currentSchemaBranch = traverseSchema(schema, history);
+				// Update traverseSchema to check for incomplete last branch (ex: nam...)
+		
+		//FUNCTIONALITY
+
+		// return suggestion and dispose?
+		// Is there a better way to suggest something without subscribing? (a one-time suggest function)
+
+		//pokemon -> type -> ele..... [pokemon, type, ele]
+		//compare against schema
+		// if last word typed == "name" ...na ... string[0],string[1] == name
+		// create a new suggestion item that contains the full word name
+		// if currentSchemaBranch[electric, fire] .... fi
 		
 	});
 };
