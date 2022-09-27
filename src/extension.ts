@@ -6,33 +6,109 @@ import { type } from 'os';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import parser from "./parser";
+import { offerSuggestions, traverseSchema, parseQuery,
+	fixBadFormatting, ignoreParentheses, filterNestedPaths,
+	filterFlatPaths, updateHistory } from "./lib/suggestions";
 
-let queryIntiate = true
-let queryLevel : any
-interface PokeQuery {
-	pokemon: {
-		name:string,
-		type: string,
-		moves: string
+let schema: any;
 
-	}
-} // /Users/ethanmcrae/test/PathIntellisense/src/test/demo-workspace/project-one/hello/world.txt
-export function activate(context: vscode.ExtensionContext) {
+let history: any[] = [];
+const triggerCharacters: string[] = ['`', '{'];
 
-	const filePath = path.join(vscode.workspace.rootPath, 'hello/world.txt');
-	const fileContents = fs.readFileSync(filePath, 'utf8');
-	vscode.window.showInformationMessage(fileContents);
-	// const wsedit = new vscode.WorkspaceEdit();
-	// const wsPath = vscode.workspace.workspaceFolders[0].uri.fsPath; // gets the path of the first workspace folder
-	// const filePath = vscode.Uri.file(wsPath + '/hello/world.txt').toString().slice(7);
-	// vscode.window.showInformationMessage(path.resolve('./project-one/hello/world.txt'));
-	// vscode.window.showInformationMessage(filePath.toString());
-	// const fileContents = fs.readFileSync(filePath);
-	// vscode.window.showInformationMessage(JSON.stringify(fileContents));
+// This function will only be executed when the extension is activated.
+export async function activate(context: vscode.ExtensionContext) {
+	// At startup
+  console.log('SurfQL is now active 🌊');
+	schema = await configToSchema(); // Parse schema files from the config file
 
-	//each provider is a set of rules, for what needs to be typed and what will be suggested
+  // The command has been defined in the package.json file
+  // Now provide the implementation of the command with registerCommand
+  // The commandId parameter must match the command field in package.json
+  let disposable = vscode.commands.registerCommand("surfql.helloWorld", () => {
+    // Display a message box to the user
+    vscode.window.showInformationMessage("Hello World from SurfQL!");
+  });
 
-	const provider1 = vscode.languages.registerCompletionItemProvider('javascript', {
+  // Creates a popup with a schema tree visualizer.
+  let previewSchema = vscode.commands.registerCommand(
+    "surfql.previewSchema",
+    async () => {
+      // Prompt user to select Schema file
+      let schemaFilePath = "";
+
+      const options: vscode.OpenDialogOptions = {
+        canSelectMany: false,
+        openLabel: "Open",
+        filters: {
+          "graphqls files": ["graphql", "graphqls", "ts", "js"],
+        },
+      };
+
+
+      await vscode.window.showOpenDialog(options).then((fileUri) => {
+        console.log("file Uri -> ", fileUri);
+        if (fileUri && fileUri[0]) {
+          schemaFilePath = fileUri[0].fsPath;
+        }
+      });
+
+      //create a new panel in webView
+      const panel = vscode.window.createWebviewPanel(
+        "Preview Schema", // viewType, internal use
+        "Schema Preview", // Preview title in the tag
+        vscode.ViewColumn.Beside, // where the new panel shows
+        {
+          enableScripts: true,
+        } //option to add scripts
+      );
+
+      // Get path to the preview.js script on disk
+      const onDiskPath = vscode.Uri.file(
+        path.join(context.extensionPath, "scripts", "preview.js")
+      );
+
+      //toDo add stylesheet.
+      const styleSheetPath = vscode.Uri.file(
+        path.join(context.extensionPath, "stylesheet", "preview.css")
+      );
+
+      console.log("on disk path", onDiskPath);
+      //add the previewjs to panel as a accessible Uri
+      const scriptSrc = panel.webview.asWebviewUri(onDiskPath);
+      const styleSrc = panel.webview.asWebviewUri(styleSheetPath);
+
+      //Add html content//
+      panel.webview.html = getWebViewContent(
+        scriptSrc.toString(),
+        styleSrc.toString()
+      );
+
+      //add event listener to webview
+      panel.webview.onDidReceiveMessage((message) => {
+        console.log("message1", message);
+        if (message.command === "get schema text") {
+          let schemaText = fs.readFileSync(schemaFilePath, "utf8");
+          const [schemaArr, returnObj] = parser(schemaText);
+          console.log(returnObj);
+		  		schema = createNestedObj(returnObj);
+          panel.webview.postMessage({
+            command: "sendSchemaInfo",
+            text: JSON.stringify(schemaArr),
+          });
+        }
+        return;
+      });
+
+    }
+  );
+
+  context.subscriptions.push(previewSchema);
+
+	
+	// Each provider is a set of rules, for what needs to be typed, to create suggestions
+	// Providers are similar to event listeners
+	const exampleProvider: vscode.Disposable = vscode.languages.registerCompletionItemProvider('javascript', {
 
 		provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext) {
 
@@ -52,18 +128,9 @@ export function activate(context: vscode.ExtensionContext) {
 			// the `commitCharacters`-property is set which means that the completion will
 			// be inserted and then the character will be typed.
 
-
-	
-
-
 			//definitions
 			// CompletionItem is text that's suggested by VSCode to the user...
-			//example: if you define completion item as chicken and type "chi" it will show "chicken"
-
-			//commitCharacters is the string that triggers the ???
-			
-
-
+			// - example: if you define completion item as chicken and type "chi" it will show "chicken"
 
 			//We need the completion item to basically be the next item in the query
 
@@ -72,8 +139,8 @@ export function activate(context: vscode.ExtensionContext) {
 			commitCharacterCompletion.documentation = new vscode.MarkdownString('Press `.` to get `console.`');
 
 			// a completion item that retriggers IntelliSense when being accepted,
-			// the `command`-property is set which the editor will execute after 
-			// completion has been inserted. Also, the `insertText` is set so that 
+			// the `command`-property is set which the editor will execute after
+			// completion has been inserted. Also, the `insertText` is set so that
 			// a space is inserted after `new`
 			const commandCompletion = new vscode.CompletionItem('new');
 			commandCompletion.kind = vscode.CompletionItemKind.Keyword;
@@ -89,150 +156,100 @@ export function activate(context: vscode.ExtensionContext) {
 			];
 		}
 	});
-	const provider2 = vscode.languages.registerCompletionItemProvider(
+
+////////////////////////
+//Suggestion Provider//
+///////////////////////
+	const suggestionProvider: vscode.Disposable = vscode.languages.registerCompletionItemProvider(
 		'javascript',
 		{
 			provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
+				// Removed to enable multi-line query auto-fill
+				// TODO: Break early when it can be determined that the cursor is not within a query string
+				// if (!linePrefix.includes("`")) {
+				// 	return undefined;
+				// }
 
-				const pokeQuery: any = {
-					pokemon: {
-						name: "Pikachu",
-						type: "Electric",
-						moves: "Tackle"
-					},
-					test2: {
-						tester: 'test',
-					},
-					test3: {
-						works: true
+				// Need to code for instances with `query` before actual query
+				/* const QUERY_ALL_USERS = gql`
+  					query GetAllUsers {
+    				users {
+     				 id
+						name
+						age
+						username
+						nationality
+						}
 					}
-				}
-	
-
-				//Initial activation should be via back tick, but ALL further queries should NOT be using this
-				const linePrefix = document.lineAt(position).text.substr(0, position.character);
-				if (!linePrefix.includes("`")) {
-					return undefined;
-				}
-
-				function setLevel(e: any) {
-					console.log('the function has been activated and the level is ', e)
-				}
-
-				if (queryIntiate == true) {
-					let objArr = Object.keys(pokeQuery)
-				let suggestions: Array<any> = []
-
-				const indent = lineIndentation(linePrefix, 2);
-
-				objArr.forEach(e => {
-					suggestions.push(new vscode.CompletionItem(`\n${indent}` + e + `:{\${1}\n`, vscode.CompletionItemKind.Method))
-					console.log(suggestions)
-					queryIntiate = false
-					queryLevel = e // == "pokemon"	
-					
-				})
-				return suggestions;
-				} else {
-					let objArr = Object.keys(pokeQuery[queryLevel])
-
-					let suggestions: Array<any> = []
-
-				objArr.forEach(e => {
-					suggestions.push(new vscode.CompletionItem(e + ": {", vscode.CompletionItemKind.Method))
-					console.log(suggestions)
-					queryIntiate = false
-					queryLevel = e 
-
-					
-					
-				})
-
-				return suggestions;
-				}
-
-				
-
-				
+					`;
+				*/
+				const currentSchemaBranch = traverseSchema(schema, history);
+				//makesuggestion()
+				return offerSuggestions(currentSchemaBranch) as vscode.CompletionItem[];
 			}
 		},
-		'`' // triggered whenever a backtick is being typed
+		...triggerCharacters // => ['{', '`']
 	);
 
-	context.subscriptions.push(provider1, provider2);
+	context.subscriptions.push(exampleProvider, suggestionProvider);
 
-	//let's do a poptup for preview Schema
-	let previewSchema = vscode.commands.registerCommand('surfql.previewSchema', async () => {
-		//Prompt user to select Schema file
-		let schemaFilePath = '';
 
-		const options: vscode.OpenDialogOptions = {
-			canSelectMany: false,
-			openLabel: 'Open',
-			filters: {
-				'graphqls files': ['graphql', 'graphqls', 'ts', 'js']
-			}
-		};
-
-		await vscode.window.showOpenDialog(options).then(fileUri => {
-			console.log('file Uri -> ', fileUri);
-			if (fileUri && fileUri[0]) {
-				schemaFilePath = fileUri[0].fsPath;
-			}
-		});
-
-		//create a newpanel in webView
-		const panel = vscode.window.createWebviewPanel(
-			"Preview Schema", //viewType, internal use
-			"Schema Preview", //Preview title in the tag
-			vscode.ViewColumn.Beside, //where the new panel shows
-			{
-				enableScripts: true
-			} //option to add scripts
-		);
-
-		
-		// Get path to the preview.js script on disk
-		const onDiskPath = vscode.Uri.file(
-			path.join(context.extensionPath,'scripts', 'preview.js')
-		);
-		
-
-		console.log('on disk path', onDiskPath);
-		//add the previewjs to panel as a accessible Uri
-		const scriptSrc = panel.webview.asWebviewUri(onDiskPath);
-			
-		//Add html content//
-		panel.webview.html = getWebViewContent(scriptSrc.toString());
-
-		//add event listener to webview
-		panel.webview.onDidReceiveMessage(message => {
-			console.log('message1', message);
-			if (message.command === 'get schema text') {
-				let schemaText = fs.readFileSync(schemaFilePath, 'utf8');
-				panel.webview.postMessage({
-					command: 'sendText',
-					text: schemaText
-				});
-			};
+	vscode.workspace.onDidChangeTextDocument((e) => {
+		// Exit early when no schema has been loaded.
+		if (!schema) {
+			console.log('Ignoring updates: No schema loaded');
 			return;
-		});
-	});
+		}
 
-}
+		// name .... na...[na,] -> {
+		const lineNumber: number = e.contentChanges[0].range.start.line;
+		const characterNumber: number = e.contentChanges[0].range.start.character;
+		const line: string = e.document.lineAt(lineNumber).text;
+		console.log('\n\nrow', lineNumber, 'column', characterNumber);
+
+		// Create a query detector function here
+
+		const messyHistory: string[] = parseQuery(lineNumber, characterNumber, e.document); // Parse the document into an array
+		const formattedHistory: string[] = fixBadFormatting(messyHistory); // Stimulate spacing around brackets/parentheses
+		const cleanHistory: string[] = ignoreParentheses(formattedHistory); // Ignore the parentheses and their contents
+		const cleanerHistory: string[] = filterNestedPaths(cleanHistory); // Ignore nested objects that invalidate the path
+		const validHistory: string[] = filterFlatPaths(cleanerHistory); // Ignore properties that aren't part of the history
+		history = updateHistory(validHistory);
+
+		// Provide suggestions
+		// function:
+			// const currentSchemaBranch = traverseSchema(schema, history);
+				// Update traverseSchema to check for incomplete last branch (ex: nam...)
+		
+		//FUNCTIONALITY
+
+		// return suggestion and dispose?
+		// Is there a better way to suggest something without subscribing? (a one-time suggest function)
+
+		//pokemon -> type -> ele..... [pokemon, type, ele]
+		//compare against schema
+		// if last word typed == "name" ...na ... string[0],string[1] == name
+		// create a new suggestion item that contains the full word name
+		// if currentSchemaBranch[electric, fire] .... fi
+		
+	});
+};
+
+
 
 //Initial preview html content
-const getWebViewContent = (scriptSrc: String) => {
-	return `<!DOCTYPE html>
+const getWebViewContent = (scriptSrc: String, styleSrc: String) => {
+  return `<!DOCTYPE html>
 				<html lang="en">
 					<head>
 						<meta charset="UTF-8">
 						<meta name="viewport" content="width=device-width, initial-scale=1.0">
 						<title>PreviewSchema</title>
-						<script type="text/javascript" src="${ scriptSrc }"></script>
+						<script type="text/javascript" src="${scriptSrc}"></script>
+						<link rel="stylesheet" href="${styleSrc}" />
 					</head>
 					<body>
-						<h1>Schema Name</h1>
+						<h1>Schema Hierarchy</h1>
 						<div id='board'>Build a Nice Tree Structure</div>
 						<script>
 							document.addEventListener('DOMcontentLoaded', () => {
@@ -247,29 +264,72 @@ const getWebViewContent = (scriptSrc: String) => {
 						</script>
 					</body>
 				</html>`;
-
 };
 
 // this method is called when your extension is deactivated
 export function deactivate() {}
 
+//modify the returned schemaObj
+function createNestedObj(obj: any) {
+    //loop through obj, for all valueObj, check if valueObj.key exist in obj.
+    //if so, valueObj.key = obj.key, then call modifyObj on valueObj
+    for (const key in obj) {
+        for (const valueKey in obj[key]) {
+            if (obj[key][valueKey] in obj) {
+                obj[key][valueKey] = obj[obj[key][valueKey]];
+                createNestedObj(obj[key]);
+            }
+        }
+    };
+    return obj;
+}
+
 /**
- * Given a line from a file, a string is returned representing the indentation
- * in spaces.
- * @param line 
- * @return spaces (string)
+ * Searches the root directory of the user's workspace for a schema config file.
+ * The config file is used to locate the correct schema files to parse.
  */
- const lineIndentation = (line: string, add: number = 0): string => {
-  // TODO: Update this function to work with tabs as well
-  let indentation = 0; // Initialize a counter
-  for (const char of line) { // Iterate through each character of the line
-    // console.log(char); // TODO: Remove
-    if (char !== ' ') { // If the character is not a space:
-      return ' '.repeat(indentation + add); // Return the indentation amount
-    } else { // If the character is a space:
-      indentation++; // increment the indentation amount
-    }
-  }
-  // In the case where the entire line is filled with spaces:
-  return ' '.repeat(indentation + add); // Return the indentation amount
-};
+async function configToSchema(): Promise<any> {
+	// Attempt to file the SurfQL config file within the user's workspace.
+	const filepath: string | undefined = await vscode.workspace.findFiles('**/surfql.json', '**/node_modules/**', 1).then(([ uri ]: vscode.Uri[]) => {
+		// When no file was found:
+		if (!uri) {
+			createSchemaPrompt(); // Prompt the user
+			return; // Return undefined
+		}
+		// When a config file was found return the file path.
+		console.log('config path ->', uri.path);
+		return uri.path;
+	});
+
+	// Exit early when there is was no SurfQL config file found.
+	if (!filepath) {
+		console.log('No config file found at extension startup');
+		return;
+	}
+
+	// Parse the config file to determine where the schema file(s) are.
+	const configText = fs.readFileSync(filepath, "utf8");
+	const config = JSON.parse(configText);
+	const schemaPath = path.join(filepath, '../', config.schema);
+
+	// Read the schema file and parse it into a usable object.
+	const schemaText = fs.readFileSync(schemaPath, "utf8");
+	const [, returnObj] = parser(schemaText);
+	return createNestedObj(returnObj);
+}
+
+function createSchemaPrompt(): void {
+	vscode.window.showInformationMessage("No surfql.json found");
+	// TODO: Add a message with an "Okay" button that will auto-generate a config
+	//       file for the user (if they press "Okay").
+	// TODO: The file created will be loaded with { "schema": "./your-file-here/graphql" }
+}
+
+//Out-of-scope features pre-presentation
+// Live-share compatibility (usability)
+// ability to detect ONLY graphql query vs parsing the whole document (efficiency)
+// splash site 
+// vscode publication
+// check to see if the cursor is even within a query
+// When the suggestion is another nested object show brackets. But when its an endpoint don't show brackets.
+
