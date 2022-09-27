@@ -17,9 +17,11 @@
 class Root {
   name: string;
   fields: {};
-  constructor(val: string) {
+  interface: string | null;
+  constructor(val: string, interfaceVal: string | null) {
     this.name = val;
     this.fields = {} as any;
+    this.interface = interfaceVal;
   }
 };
 
@@ -35,14 +37,21 @@ class Enum {
 //build root variable
 function nameBuilder(string: string) {
   const cleanstr = string.trim();
-  let variable = "";
-  for (let i = 0; i < cleanstr.length; i++) {
-    if (cleanstr[i] === " ") {
-      return variable;
-    }
-    variable += cleanstr[i];
+  if (cleanstr.includes(" ")) {
+    const [variable, mid, interfaceVal] = cleanstr.split(" ");
+    console.log(mid);
+    return [variable, interfaceVal];
+  } else {
+    let variable = cleanstr;
+    return [variable, null];
   }
-  return variable;
+  // for (let i = 0; i < cleanstr.length; i++) {
+  //   if (cleanstr[i] === " ") {
+  //     return variable;
+  //   }
+  //   variable += cleanstr[i];
+  // }
+  // return variable;
 }
 
 //use the function to build field and return array of [variable, current ending+1]
@@ -105,10 +114,12 @@ export default function parser(text: string) {
   let parsing = false;
   //declare status for checking parsing Enum
   let parsingEnum = false;
+  //declare status for checking parsing Input
+  let parsingInput = false;
   function typeSlicer(strEnd: number, cleanline: string) {
-    const variable = nameBuilder(cleanline.slice(strEnd));
+    const [variable, interfaceVal] = nameBuilder(cleanline.slice(strEnd));
     if (parsing) {
-      const newRoot: Root = new Root(variable);
+      const newRoot: Root = new Root(variable, interfaceVal);
       if (variable.toLowerCase() === 'query') {
         queryMutation.push(newRoot);
         currentArr = 'queryMutation';
@@ -123,6 +134,10 @@ export default function parser(text: string) {
       const newEnum: Enum = new Enum(variable);
       enumArr.push(newEnum);
       currentArr = 'enum';
+    } else if (parsingInput) {
+      const newRoot: Root = new Root(variable, interfaceVal);
+      inputArr.push(newRoot);
+      currentArr = 'input';
     }
     curRoot = variable;
     returnObj[curRoot] = {};
@@ -143,6 +158,8 @@ export default function parser(text: string) {
   const queryMutation: Array<Root> = [];
   //declare a enum array
   const enumArr: Array<Enum> = [];
+  //declare a input array
+  const inputArr: Array<Root> = [];
   //read through line by line, conditional check
   const returnObj = {} as any;
   let curRoot: string = "";
@@ -157,6 +174,16 @@ export default function parser(text: string) {
         if (currentArr === 'enum') {
           enumArr[enumArr.length - 1].value.push(cleanline);
         }
+      }
+    };
+    if (parsingInput) {
+      if (cleanline[0] === "}") {
+        parsingInput = false; //is there situation people put {} in the schema??
+      } else if (cleanline.trim().length === 0) {
+        //do nothing
+      } else {
+        const [variable, typeInfo] = fieldBuilder(cleanline);
+        inputArr[inputArr.length - 1].fields[variable] = parsingTypeInfo(typeInfo);
       }
     }
     if (parsing) {
@@ -180,7 +207,7 @@ export default function parser(text: string) {
         parsing = true;
         typeSlicer(typeIndex, cleanline);
       } else if (cleanline.slice(0, inputIndex) === "input") {
-        parsing = true;
+        parsingInput = true;
         typeSlicer(inputIndex, cleanline);
       } else if (cleanline.slice(0, interfaceIndex) === "interface") {
         parsing = true;
@@ -191,6 +218,6 @@ export default function parser(text: string) {
       }
     };
   });
-  console.log(root, queryMutation, enumArr);
-  return [root, queryMutation, enumArr, returnObj];
+  console.log(root, queryMutation, enumArr, inputArr);
+  return [root, queryMutation, enumArr, inputArr, returnObj];
 };

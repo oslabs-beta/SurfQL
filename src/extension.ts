@@ -115,12 +115,12 @@ export function activate(context: vscode.ExtensionContext) {
         console.log("message1", message);
         if (message.command === "get schema text") {
           let schemaText = fs.readFileSync(schemaFilePath, "utf8");
-          const [schemaArr, queryMutation, enumArr, returnObj] = parser(schemaText);
+          const [schemaArr, queryMutation, enumArr, inputArr, returnObj] = parser(schemaText);
           console.log(returnObj);
 		  schema = createNestedObj(returnObj);
           panel.webview.postMessage({
             command: "sendSchemaInfo",
-            text: JSON.stringify([schemaArr,queryMutation, enumArr]),
+            text: JSON.stringify([schemaArr,queryMutation, enumArr, inputArr]),
           });
         }
         return;
