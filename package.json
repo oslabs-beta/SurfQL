@@ -47,7 +47,7 @@
     "viewsWelcome": [
       {
         "view": "surfql",
-        "contents": "Hello, World!\n[Add Dependency](command:triggerSuggest)"
+        "contents": "SurfQL Visualizer\n[View Schemas](command:surfql.previewSchema)"
       }
     ]
   },

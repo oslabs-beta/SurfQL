@@ -12,6 +12,7 @@ import { offerSuggestions, traverseSchema, parseQuery,
 	filterFlatPaths, updateHistory } from "./lib/suggestions";
 
 let schema: any;
+let schemaPaths: string[] = [];
 
 let history: any[] = [];
 const triggerCharacters: string[] = ['`', '{'];
@@ -20,7 +21,7 @@ const triggerCharacters: string[] = ['`', '{'];
 export async function activate(context: vscode.ExtensionContext) {
 	// At startup
   console.log('SurfQL is now active 🌊');
-	schema = await configToSchema(); // Parse schema files from the config file
+	[ schema, schemaPaths ] = await configToSchema(); // Parse schema files from the config file
 
   // The command has been defined in the package.json file
   // Now provide the implementation of the command with registerCommand
@@ -31,75 +32,76 @@ export async function activate(context: vscode.ExtensionContext) {
   });
 
   // Creates a popup with a schema tree visualizer.
-  let previewSchema = vscode.commands.registerCommand(
+  const previewSchema = vscode.commands.registerCommand(
     "surfql.previewSchema",
     async () => {
-      // Prompt user to select Schema file
-      let schemaFilePath = "";
+			// Load schema(s) from config file.
+			if (schemaPaths.length === 0) {
+				// Prompt user to select a schema file.
+				const options: vscode.OpenDialogOptions = {
+					canSelectMany: false,
+					openLabel: "Open",
+					filters: {
+						"graphqls files": ["graphql", "graphqls", "ts", "js"],
+					},
+				};
 
-      const options: vscode.OpenDialogOptions = {
-        canSelectMany: false,
-        openLabel: "Open",
-        filters: {
-          "graphqls files": ["graphql", "graphqls", "ts", "js"],
-        },
-      };
+				// Update the schema path.
+				await vscode.window.showOpenDialog(options).then((fileUri) => {
+					console.log("file Uri -> ", fileUri);
+					if (fileUri && fileUri[0]) {
+						schemaPaths = [fileUri[0].fsPath];
+					}
+				});
+			}
+			for (const schemaPath of schemaPaths) {
+				//create a new panel in webView
+				const panel = vscode.window.createWebviewPanel(
+					"Preview Schema", // viewType, internal use
+					"Schema Preview", // Preview title in the tag
+					vscode.ViewColumn.Beside, // where the new panel shows
+					{
+						enableScripts: true,
+					} //option to add scripts
+				);
 
+				// Get path to the preview.js script on disk
+				const onDiskPath = vscode.Uri.file(
+					path.join(context.extensionPath, "scripts", "preview.js")
+				);
 
-      await vscode.window.showOpenDialog(options).then((fileUri) => {
-        console.log("file Uri -> ", fileUri);
-        if (fileUri && fileUri[0]) {
-          schemaFilePath = fileUri[0].fsPath;
-        }
-      });
+				//toDo add stylesheet.
+				const styleSheetPath = vscode.Uri.file(
+					path.join(context.extensionPath, "stylesheet", "preview.css")
+				);
 
-      //create a new panel in webView
-      const panel = vscode.window.createWebviewPanel(
-        "Preview Schema", // viewType, internal use
-        "Schema Preview", // Preview title in the tag
-        vscode.ViewColumn.Beside, // where the new panel shows
-        {
-          enableScripts: true,
-        } //option to add scripts
-      );
+				console.log("on disk path", onDiskPath);
+				//add the previewjs to panel as a accessible Uri
+				const scriptSrc = panel.webview.asWebviewUri(onDiskPath);
+				const styleSrc = panel.webview.asWebviewUri(styleSheetPath);
 
-      // Get path to the preview.js script on disk
-      const onDiskPath = vscode.Uri.file(
-        path.join(context.extensionPath, "scripts", "preview.js")
-      );
+				//Add html content//
+				panel.webview.html = getWebViewContent(
+					scriptSrc.toString(),
+					styleSrc.toString()
+				);
 
-      //toDo add stylesheet.
-      const styleSheetPath = vscode.Uri.file(
-        path.join(context.extensionPath, "stylesheet", "preview.css")
-      );
-
-      console.log("on disk path", onDiskPath);
-      //add the previewjs to panel as a accessible Uri
-      const scriptSrc = panel.webview.asWebviewUri(onDiskPath);
-      const styleSrc = panel.webview.asWebviewUri(styleSheetPath);
-
-      //Add html content//
-      panel.webview.html = getWebViewContent(
-        scriptSrc.toString(),
-        styleSrc.toString()
-      );
-
-      //add event listener to webview
-      panel.webview.onDidReceiveMessage((message) => {
-        console.log("message1", message);
-        if (message.command === "get schema text") {
-          let schemaText = fs.readFileSync(schemaFilePath, "utf8");
-          const [schemaArr, returnObj] = parser(schemaText);
-          console.log(returnObj);
-		  		schema = createNestedObj(returnObj);
-          panel.webview.postMessage({
-            command: "sendSchemaInfo",
-            text: JSON.stringify(schemaArr),
-          });
-        }
-        return;
-      });
-
+				//add event listener to webview
+				panel.webview.onDidReceiveMessage((message) => {
+					console.log("message1", message);
+					if (message.command === "get schema text") {
+						let schemaText = fs.readFileSync(schemaPath, "utf8");
+						const [schemaArr, returnObj] = parser(schemaText);
+						console.log(returnObj);
+						schema = createNestedObj(returnObj);
+						panel.webview.postMessage({
+							command: "sendSchemaInfo",
+							text: JSON.stringify(schemaArr),
+						});
+					}
+					return;
+				});
+			}
     }
   );
 
@@ -288,7 +290,7 @@ function createNestedObj(obj: any) {
  * Searches the root directory of the user's workspace for a schema config file.
  * The config file is used to locate the correct schema files to parse.
  */
-async function configToSchema(): Promise<any> {
+async function configToSchema(): Promise<[any, string[]]> {
 	// Attempt to file the SurfQL config file within the user's workspace.
 	const filepath: string | undefined = await vscode.workspace.findFiles('**/surfql.json', '**/node_modules/**', 1).then(([ uri ]: vscode.Uri[]) => {
 		// When no file was found:
@@ -304,7 +306,7 @@ async function configToSchema(): Promise<any> {
 	// Exit early when there is was no SurfQL config file found.
 	if (!filepath) {
 		console.log('No config file found at extension startup');
-		return;
+		return [undefined, []]; // Return nothing
 	}
 
 	// Parse the config file to determine where the schema file(s) are.
@@ -314,8 +316,9 @@ async function configToSchema(): Promise<any> {
 
 	// Read the schema file and parse it into a usable object.
 	const schemaText = fs.readFileSync(schemaPath, "utf8");
-	const [, returnObj] = parser(schemaText);
-	return createNestedObj(returnObj);
+	const [, schemaObj] = parser(schemaText);
+	const usableSchemaObj = createNestedObj(schemaObj);
+	return [usableSchemaObj, [schemaPath]];
 }
 
 function createSchemaPrompt(): void {
