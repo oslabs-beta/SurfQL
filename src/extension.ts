@@ -35,7 +35,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const previewSchema = vscode.commands.registerCommand(
     "surfql.previewSchema",
     async () => {
-			// Load schema(s) from config file.
+			// If no schema path was found from a config file: Open a file selector
 			if (schemaPaths.length === 0) {
 				// Prompt user to select a schema file.
 				const options: vscode.OpenDialogOptions = {
