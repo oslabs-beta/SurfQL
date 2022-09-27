@@ -11,33 +11,30 @@ import { offerSuggestions, traverseSchema, parseQuery,
 	fixBadFormatting, ignoreParentheses, filterNestedPaths,
 	filterFlatPaths, updateHistory } from "./lib/suggestions";
 
-let schema: any = {
-	'Import a schema file...': 0
-};
+let schema: any;
 
 let history: any[] = [];
 const triggerCharacters: string[] = ['`', '{'];
-const indentation = '  '; // TODO: Update based off the config (spacing/tab amount)
 
-export function activate(context: vscode.ExtensionContext) {
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-  // This line of code will only be executed once when your extension is activated
+// This function will only be executed when the extension is activated.
+export async function activate(context: vscode.ExtensionContext) {
+	// At startup
   console.log('SurfQL is now active 🌊');
+	schema = await configToSchema(); // Parse schema files from the config file
 
   // The command has been defined in the package.json file
   // Now provide the implementation of the command with registerCommand
   // The commandId parameter must match the command field in package.json
   let disposable = vscode.commands.registerCommand("surfql.helloWorld", () => {
-    // The code you place here will be executed every time your command is executed
     // Display a message box to the user
     vscode.window.showInformationMessage("Hello World from SurfQL!");
   });
 
-  //let's do a popup for preview Schema
+  // Creates a popup with a schema tree visualizer.
   let previewSchema = vscode.commands.registerCommand(
     "surfql.previewSchema",
     async () => {
-      //Prompt user to select Schema file
+      // Prompt user to select Schema file
       let schemaFilePath = "";
 
       const options: vscode.OpenDialogOptions = {
@@ -94,7 +91,7 @@ export function activate(context: vscode.ExtensionContext) {
           let schemaText = fs.readFileSync(schemaFilePath, "utf8");
           const [schemaArr, returnObj] = parser(schemaText);
           console.log(returnObj);
-		  schema = createNestedObj(returnObj);
+		  		schema = createNestedObj(returnObj);
           panel.webview.postMessage({
             command: "sendSchemaInfo",
             text: JSON.stringify(schemaArr),
@@ -198,12 +195,17 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 	vscode.workspace.onDidChangeTextDocument((e) => {
+		// Exit early when no schema has been loaded.
+		if (!schema) {
+			console.log('Ignoring updates: No schema loaded');
+			return;
+		}
 
 		// name .... na...[na,] -> {
 		const lineNumber: number = e.contentChanges[0].range.start.line;
 		const characterNumber: number = e.contentChanges[0].range.start.character;
 		const line: string = e.document.lineAt(lineNumber).text;
-		console.log('row', lineNumber, 'column', characterNumber);
+		console.log('\n\nrow', lineNumber, 'column', characterNumber);
 
 		// Create a query detector function here
 
@@ -267,30 +269,6 @@ const getWebViewContent = (scriptSrc: String, styleSrc: String) => {
 // this method is called when your extension is deactivated
 export function deactivate() {}
 
-
-
-
-/**
- * Given a line from a file, a string is returned representing the indentation
- * in spaces.
- * @param line 
- * @param add Will result in an increase/decrease of returned spacing.
- * @return The amount of spaces representing the indentation
- */
- const lineIndentation = (line: string, add: number = 0): string => {
-  // TODO: Update this function to work with tabs as well
-  let indentation = 0; // Initialize a counter
-  for (const char of line) { // Iterate through each character of the line
-    if (char !== ' ') { // If the character is not a space:
-      return ' '.repeat(indentation + add); // Return the indentation amount
-    } else { // If the character is a space:
-      indentation++; // increment the indentation amount
-    }
-  }
-  // In the case where the entire line is filled with spaces:
-  return ' '.repeat(indentation + add); // Return the indentation amount
-};
-
 //modify the returned schemaObj
 function createNestedObj(obj: any) {
     //loop through obj, for all valueObj, check if valueObj.key exist in obj.
@@ -304,6 +282,47 @@ function createNestedObj(obj: any) {
         }
     };
     return obj;
+}
+
+/**
+ * Searches the root directory of the user's workspace for a schema config file.
+ * The config file is used to locate the correct schema files to parse.
+ */
+async function configToSchema(): Promise<any> {
+	// Attempt to file the SurfQL config file within the user's workspace.
+	const filepath: string | undefined = await vscode.workspace.findFiles('**/surfql.json', '**/node_modules/**', 1).then(([ uri ]: vscode.Uri[]) => {
+		// When no file was found:
+		if (!uri) {
+			createSchemaPrompt(); // Prompt the user
+			return; // Return undefined
+		}
+		// When a config file was found return the file path.
+		console.log('config path ->', uri.path);
+		return uri.path;
+	});
+
+	// Exit early when there is was no SurfQL config file found.
+	if (!filepath) {
+		console.log('No config file found at extension startup');
+		return;
+	}
+
+	// Parse the config file to determine where the schema file(s) are.
+	const configText = fs.readFileSync(filepath, "utf8");
+	const config = JSON.parse(configText);
+	const schemaPath = path.join(filepath, '../', config.schema);
+
+	// Read the schema file and parse it into a usable object.
+	const schemaText = fs.readFileSync(schemaPath, "utf8");
+	const [, returnObj] = parser(schemaText);
+	return createNestedObj(returnObj);
+}
+
+function createSchemaPrompt(): void {
+	vscode.window.showInformationMessage("No surfql.json found");
+	// TODO: Add a message with an "Okay" button that will auto-generate a config
+	//       file for the user (if they press "Okay").
+	// TODO: The file created will be loaded with { "schema": "./your-file-here/graphql" }
 }
 
 //Out-of-scope features pre-presentation

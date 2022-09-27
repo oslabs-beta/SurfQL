@@ -45,9 +45,9 @@ export function traverseSchema(schema: any, history: string[]): string[] {
 };
 
 //TODO
-// Auto complete anywhere (no trigger characters needed)
-// Config file
-// Enable support for 'mutation' or 'query'
+// [ ] Auto complete anywhere (no trigger characters needed)
+// [ ] Config file
+// [X] Enable support for 'mutation' or 'query'
 
 /**
  * At any point in the query, this function will suggest/complete what the user typed based on the existing schema.
@@ -72,7 +72,7 @@ export function autoCompleteAnywhere(schema : any, history: string[]) : Completi
     let messyHistory: string[] = [];
     let line: string = document.lineAt(lineNumber).text;
     line = line.slice(0, cursorLocation + 1); // Ignore everything after the cursor
-    const limit = 10; // Limits max amount of lines to process
+    const limit = 1000; // Limits max amount of lines to process
 
     //Goal: Limit the size of the history array that's storing sections/path of the file
     //Ideation: We define a limit, the while loop will run
@@ -81,7 +81,6 @@ export function autoCompleteAnywhere(schema : any, history: string[]) : Completi
     // Create an array of words (and occasional characters such as: '{')
     // Iterate through the lines of the file (starting from the cursor moving up the file)
     while (lineNumber >= 0 && messyHistory.length <= limit) {
-        console.log('the line number is currently', lineNumber)
         // When the start of the query was found: This is the last loop
         if (line.includes('`')) {
             lineNumber = -1; // Set line number to -1 to end the loop
@@ -91,7 +90,6 @@ export function autoCompleteAnywhere(schema : any, history: string[]) : Completi
         }
 
         // Detect if the file is compressed into a one-line file.
-        console.log('the line length is currently', line.length)
         // Exit early if the line is 1000+ characters.
         if (line.length > 1000) {
             console.log('Line limit', 1000, 'reached');
@@ -112,7 +110,7 @@ export function autoCompleteAnywhere(schema : any, history: string[]) : Completi
     }
 
     // Failed to limit
-    console.log('the length of the history array is now', messyHistory.length)
+    console.log('the length of the history array is now', messyHistory.length);
     
     // Clean up the parsed query array into a useable history array
     messyHistory = messyHistory.filter((str) => str); // Filter out the empty strings from the query array
