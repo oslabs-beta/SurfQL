@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const board = document.querySelector("#board");
 
   //add a static message
-  board.innerHTML = "Grow a beautiful tree";
+  //board.innerHTML = "Grow a beautiful tree";
 
   const vscode = acquireVsCodeApi();
   function getSchematext() {
@@ -14,7 +14,16 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
   getSchematext();
+
+  const refreshBtn = document.querySelector("#refresh");
+  refreshBtn.addEventListener('click', (e) => {
+    console.log('Refresh->,', e);
+    board.innerHTML = '';
+    getSchematext();
+  });
 });
+
+
 
 //add eventListener to the window
 window.addEventListener("message", (event) => {
@@ -24,16 +33,21 @@ window.addEventListener("message", (event) => {
   //call parser
   if (message.command === "sendSchemaInfo") {
     // const [schemaArr, returnObj] = parser(text);
-    const schemaArr = JSON.parse(message.text);
-    console.log("here it comes", schemaArr);
-    draw(schemaArr);
+    const [schemaArr, queryMutation, enumArr, inputArr] = JSON.parse(message.text);
+    console.log("here it comes", [schemaArr, queryMutation, enumArr, inputArr]);
+    draw(queryMutation,schemaArr, enumArr);
     return;
   }
 });
 
 // //display function
-function draw(array) {
-  const arrayTypes = ["Int", "Float", "String", "Boolean", "ID"];
+function draw(qmArr, schemaArr, enumArr) {
+  const enumLeaf= [];
+  enumArr.forEach(e => {
+    enumLeaf.push(e.name);
+  });
+  console.log("enum leaf array", enumLeaf);
+  const scalarTypes = ["Int", "Float", "String", "Boolean", "ID"];
   const tree = document.createElement("div");
   tree.setAttribute("class", "tree");
   board.appendChild(tree);
@@ -41,7 +55,7 @@ function draw(array) {
   const treeUL = document.createElement("ul");
   tree.appendChild(treeUL);
   //for every root in array we create a list item
-  array.forEach((root) => {
+  qmArr.forEach((root) => {
     const li = document.createElement("li");
     li.setAttribute("data-fields", JSON.stringify(root.fields));
     li.setAttribute("class", "queryType-alt");
@@ -56,9 +70,13 @@ function draw(array) {
       const childLi = document.createElement("li");
       childLi.setAttribute("class", "fieldType-alt");
 
-      if (arrayTypes.includes(root.fields[field])) {
+      if (scalarTypes.includes(root.fields[field])) {
         console.log(root.fields[field], "true");
         childLi.textContent = `${field}:${root.fields[field]}`;
+      } else if (enumLeaf.includes(root.fields[field])) {
+        console.log("found enum leaf",root.fields[field]);
+        childLi.textContent = `${field}:${root.fields[field]}`;
+        childLi.setAttribute("font-weight", "600");
       } else {
         const btn = document.createElement("button");
         btn.textContent = `${field}:${root.fields[field]}`;
@@ -69,11 +87,11 @@ function draw(array) {
           const [field, fieldtype] = parent.textContent.split(":");
           console.log(field, fieldtype);
           //if not, return root.field, add nested structure
-          console.log(array);
-          array.forEach((e) => {
+          // console.log(array);
+          schemaArr.forEach((e) => {
             if (fieldtype === e.name) {
               console.log("e", e);
-              drawNext(array, btn, e); //array, btn buyer
+              drawNext(schemaArr, btn, e, enumLeaf); //array, btn buyer
             }
           });
         });
@@ -100,7 +118,7 @@ function draw(array) {
 }
 
 //function draw the next level fields
-function drawNext(array, node, rootObj) {
+function drawNext(array, node, rootObj, enumLeaf) {
   const arrayTypes = ["Int", "Float", "String", "Boolean", "ID"];
   //console.log('drawNext, -> ', array, node, rootObj);
   //create childUL
@@ -114,10 +132,13 @@ function drawNext(array, node, rootObj) {
 
     if (arrayTypes.includes(rootObj.fields[field])) {
       childLi.textContent = `${field}:${rootObj.fields[field]}`;
+    } else if (enumLeaf.includes(rootObj.fields[field])) {
+      childLi.textContent = `${field}:${rootObj.fields[field]}`;
+      childLi.setAttribute('style','color:green');
     } else {
       const btn = document.createElement("button");
 
-      btn.textContent = `${field}:${rootObj.fields[field]}`;
+      btn.textContent = `${field}: ${rootObj.fields[field]}`;
       //append to list item
       childLi.appendChild(btn);
       //hide children initially

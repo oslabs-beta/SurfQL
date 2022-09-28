@@ -37,7 +37,7 @@ export async function activate(context: vscode.ExtensionContext) {
 					canSelectMany: false,
 					openLabel: "Open",
 					filters: {
-						"graphqls files": ["graphql", "graphqls", "ts", "js"],
+						"graphqlsFiles": ["graphql", "graphqls", "ts", "js"],
 					},
 				};
 
@@ -79,19 +79,19 @@ export async function activate(context: vscode.ExtensionContext) {
 				panel.webview.html = getWebViewContent(
 					scriptSrc.toString(),
 					styleSrc.toString()
-				);
+      			);
 
 				//add event listener to webview
 				panel.webview.onDidReceiveMessage((message) => {
 					console.log("message1", message);
 					if (message.command === "get schema text") {
 						let schemaText = fs.readFileSync(schemaPath, "utf8");
-						const [schemaArr, returnObj] = parser(schemaText);
+						const [root, queryMutation, enumArr, inputArr, returnObj] = parser(schemaText);
 						console.log(returnObj);
 						schema = createNestedObj(returnObj);
 						panel.webview.postMessage({
 							command: "sendSchemaInfo",
-							text: JSON.stringify(schemaArr),
+							text: JSON.stringify([root, queryMutation, enumArr, inputArr]),
 						});
 					}
 					return;
@@ -102,8 +102,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(previewSchema);
 
-	
-	
 ////////////////////////
 //Suggestion Provider//
 ///////////////////////
@@ -113,25 +111,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		'javascript',
 		{
 			provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
-				// Removed to enable multi-line query auto-fill
-				// TODO: Break early when it can be determined that the cursor is not within a query string
-				// if (!linePrefix.includes("`")) {
-				// 	return undefined;
-				// }
-
-				// Need to code for instances with `query` before actual query
-				/* const QUERY_ALL_USERS = gql`
-  					query GetAllUsers {
-    				users {
-     				 id
-						name
-						age
-						username
-						nationality
-						}
-					}
-					`;
-				*/
 				const currentSchemaBranch = traverseSchema(schema, history);
 				//makesuggestion()
 				return offerSuggestions(currentSchemaBranch) as vscode.CompletionItem[];
@@ -222,7 +201,8 @@ const getWebViewContent = (scriptSrc: String, styleSrc: String) => {
 					</head>
 					<body>
 						<h1>Schema Hierarchy</h1>
-						<div id='board'>Build a Nice Tree Structure</div>
+						<button id='refresh' type='button'>Refresh</button>
+						<div id='board'></div>
 						<script>
 							document.addEventListener('DOMcontentLoaded', () => {
 								const vscode = acquireVsCodeApi();
