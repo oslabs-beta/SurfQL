@@ -9,7 +9,7 @@ import { indentation } from '../constants';
 export function offerSuggestions(branch: string[]): CompletionItem[] {
     let suggestions: CompletionItem[] = [];
     branch.forEach((option: string) => {
-        let tempCompItem = new CompletionItem(option, CompletionItemKind.Keyword); // What is displayed
+        let tempCompItem = new CompletionItem(option, CompletionItemKind.Value); // What is displayed
         tempCompItem.insertText = new SnippetString('\n' + indentation + option + '${0}\n'); // What is added
         // tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
         suggestions.push(tempCompItem);
@@ -24,15 +24,29 @@ export function offerSuggestions(branch: string[]): CompletionItem[] {
  * @returns The properties/keys at the end of the traversed object.
  */
 export function traverseSchema(schema: any, history: string[]): string[] {
+    function suggestCompletions() {
+        const possibilities = Object.keys(schema).filter(x => x.includes(history[0]));
+        console.log('🟢 POSSIBILITIES:', possibilities);
+        return possibilities;
+    }
+    if (history.length === 1) {
+        if (!schema[history[0]]) {
+            return suggestCompletions();
+        }
+    }
     // If our obj isn't an object we have hit the end of our traversal
 	if (typeof schema !== 'object') {
+        console.log('History length ->', history.length);
         //pokemon - type - electric
         // Check if its incomplete (ex: na... -> name)
-		console.log('you\'ve reached the end of the object!');
-		return [];
         // if its the last history word
-        // if it matches with anything else
-        // THEN give back: return Object.keys(schema);
+        if (history.length === 1) {
+            // if it matches with anything else
+            suggestCompletions();
+            // THEN give back: return Object.keys(schema);
+        }
+		console.log('❌ you\'ve reached the end of the object!');
+        return [];
 	}
 	// If we have hit the end of our history return the nested object keys
     else if (history.length === 0) {
@@ -46,7 +60,7 @@ export function traverseSchema(schema: any, history: string[]): string[] {
 
 //TODO
 // [ ] Auto complete anywhere (no trigger characters needed)
-// [ ] Config file
+// [X] Config file
 // [X] Enable support for 'mutation' or 'query'
 
 /**
@@ -73,10 +87,6 @@ export function autoCompleteAnywhere(schema : any, history: string[]) : Completi
     let line: string = document.lineAt(lineNumber).text;
     line = line.slice(0, cursorLocation + 1); // Ignore everything after the cursor
     const limit = 1000; // Limits max amount of lines to process
-
-    //Goal: Limit the size of the history array that's storing sections/path of the file
-    //Ideation: We define a limit, the while loop will run
-    //Issue: there's no way to tell how long the line being pushed is
     
     // Create an array of words (and occasional characters such as: '{')
     // Iterate through the lines of the file (starting from the cursor moving up the file)
@@ -213,7 +223,8 @@ export function filterFlatPaths(cleanerHistory: string[]): string[] {
     const validHistory: string[] = [];
     cleanerHistory.forEach((word: string, i: number) => {
         // Make sure the current word isn't a property.
-        if (cleanerHistory[i + 1] === '{') {
+        // (Auto include the current word being typed)
+        if (cleanerHistory[i + 1] === '{' || i === cleanerHistory.length - 1) {
             validHistory.push(word); // Add as a valid word
         }
     });

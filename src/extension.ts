@@ -9,10 +9,11 @@ import * as fs from 'fs';
 import parser from "./parser";
 import { offerSuggestions, traverseSchema, parseQuery,
 	fixBadFormatting, ignoreParentheses, filterNestedPaths,
-	filterFlatPaths, updateHistory } from "./lib/suggestions";
+	filterFlatPaths, updateHistory, autoCompleteAnywhere } from "./lib/suggestions";
 
 let schema: any;
 let schemaPaths: string[] = [];
+let providers: vscode.Disposable[] = [];
 
 let history: any[] = [];
 const triggerCharacters: string[] = ['`', '{'];
@@ -23,15 +24,9 @@ export async function activate(context: vscode.ExtensionContext) {
   console.log('SurfQL is now active 🌊');
 	[ schema, schemaPaths ] = await configToSchema(); // Parse schema files from the config file
 
-  // The command has been defined in the package.json file
-  // Now provide the implementation of the command with registerCommand
-  // The commandId parameter must match the command field in package.json
-  let disposable = vscode.commands.registerCommand("surfql.helloWorld", () => {
-    // Display a message box to the user
-    vscode.window.showInformationMessage("Hello World from SurfQL!");
-  });
-
+	
   // Creates a popup with a schema tree visualizer.
+  // The commandId parameter must match the command field in package.json
   const previewSchema = vscode.commands.registerCommand(
     "surfql.previewSchema",
     async () => {
@@ -108,60 +103,12 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(previewSchema);
 
 	
-	// Each provider is a set of rules, for what needs to be typed, to create suggestions
-	// Providers are similar to event listeners
-	const exampleProvider: vscode.Disposable = vscode.languages.registerCompletionItemProvider('javascript', {
-
-		provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext) {
-
-			// a simple completion item which inserts `Hello World!`
-			const simpleCompletion = new vscode.CompletionItem('Hello World!');
-
-			// a completion item that inserts its text as snippet,
-			// the `insertText`-property is a `SnippetString` which will be
-			// honored by the editor.
-			const snippetCompletion = new vscode.CompletionItem('Good part of the day');
-			snippetCompletion.insertText = new vscode.SnippetString('Good ${1|morning,afternoon,evening|}. It is ${1}, right?');
-			const docs : any = new vscode.MarkdownString("Inserts a snippet that lets you select [link](x.ts).");
-			snippetCompletion.documentation = docs;
-			docs.baseUri = vscode.Uri.parse('http://example.com/a/b/c/');
-
-			// a completion item that can be accepted by a commit character,
-			// the `commitCharacters`-property is set which means that the completion will
-			// be inserted and then the character will be typed.
-
-			//definitions
-			// CompletionItem is text that's suggested by VSCode to the user...
-			// - example: if you define completion item as chicken and type "chi" it will show "chicken"
-
-			//We need the completion item to basically be the next item in the query
-
-			const commitCharacterCompletion = new vscode.CompletionItem('chicken');
-			commitCharacterCompletion.commitCharacters = ['``'];
-			commitCharacterCompletion.documentation = new vscode.MarkdownString('Press `.` to get `console.`');
-
-			// a completion item that retriggers IntelliSense when being accepted,
-			// the `command`-property is set which the editor will execute after
-			// completion has been inserted. Also, the `insertText` is set so that
-			// a space is inserted after `new`
-			const commandCompletion = new vscode.CompletionItem('new');
-			commandCompletion.kind = vscode.CompletionItemKind.Keyword;
-			commandCompletion.insertText = 'new ';
-			commandCompletion.command = { command: 'editor.action.triggerSuggest', title: 'Re-trigger completions...' };
-
-			// return all completion items as array
-			return [
-				simpleCompletion,
-				snippetCompletion,
-				commitCharacterCompletion,
-				commandCompletion
-			];
-		}
-	});
-
+	
 ////////////////////////
 //Suggestion Provider//
 ///////////////////////
+	// Each provider is a set of rules, for what needs to be typed, to create suggestions
+	// Providers are similar to event listeners
 	const suggestionProvider: vscode.Disposable = vscode.languages.registerCompletionItemProvider(
 		'javascript',
 		{
@@ -193,7 +140,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		...triggerCharacters // => ['{', '`']
 	);
 
-	context.subscriptions.push(exampleProvider, suggestionProvider);
+	// context.subscriptions.push(suggestionProvider);
 
 
 	vscode.workspace.onDidChangeTextDocument((e) => {
@@ -202,6 +149,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			console.log('Ignoring updates: No schema loaded');
 			return;
 		}
+		resetTemporaryProviders();
 
 		// name .... na...[na,] -> {
 		const lineNumber: number = e.contentChanges[0].range.start.line;
@@ -233,8 +181,30 @@ export async function activate(context: vscode.ExtensionContext) {
 		// if last word typed == "name" ...na ... string[0],string[1] == name
 		// create a new suggestion item that contains the full word name
 		// if currentSchemaBranch[electric, fire] .... fi
-		
+		// autoCompleteAnywhere(schema, history);
+		const temporaryProvider: vscode.Disposable = vscode.languages.registerCompletionItemProvider(
+		'javascript',
+			{
+				provideCompletionItems() {
+					return autoCompleteAnywhere(schema, history);
+				}
+			},
+			'\n', '\r'
+		);
+		addTemporaryProvider(temporaryProvider);
 	});
+
+	function addTemporaryProvider(provider: vscode.Disposable): void {
+		providers.push(provider);
+		context.subscriptions.push(provider);
+	}
+
+	function resetTemporaryProviders(): void {
+		for (const provider of providers) {
+			provider.dispose();
+		}
+		providers = [];
+	}
 };
 
 
