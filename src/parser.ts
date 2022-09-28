@@ -16,11 +16,11 @@
 
 class Root {
   name: string;
-  fields: {};
+  fields: any;
   interface: string | null;
   constructor(val: string, interfaceVal: string | null) {
     this.name = val;
-    this.fields = {} as any;
+    this.fields = {};
     this.interface = interfaceVal;
   }
 };
@@ -35,7 +35,7 @@ class Enum {
 };
 
 //build root variable
-function nameBuilder(string: string) {
+function nameBuilder(string: string): [string, string | null] {
   const cleanstr = string.trim();
   if (cleanstr.includes(" ")) {
     const [variable, mid, interfaceVal] = cleanstr.split(" ");
@@ -153,7 +153,7 @@ export default function parser(text: string) {
   //declare schema types
   const schema = [];
   //declare root array to story the root queries
-  const root: Array<Root> = [];
+  const root: Array<any> = [];
   //declare query type and mutation type
   const queryMutation: Array<Root> = [];
   //declare a enum array
@@ -183,7 +183,9 @@ export default function parser(text: string) {
         //do nothing
       } else {
         const [variable, typeInfo] = fieldBuilder(cleanline);
-        inputArr[inputArr.length - 1].fields[variable] = parsingTypeInfo(typeInfo);
+        if (variable && typeInfo) {
+          inputArr[inputArr.length - 1].fields[variable] = parsingTypeInfo(typeInfo);
+        }
       }
     }
     if (parsing) {

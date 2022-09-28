@@ -24,6 +24,31 @@
         "command": "surfql.previewSchema",
         "title": "Preview Schema"
       }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "surfql",
+          "title": "SurfQL",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "surfql": [
+        {
+          "id": "surfql",
+          "name": "SurfQL",
+          "icon": "media/icon.svg",
+          "contextualTitle": "Package Explorer"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "surfql",
+        "contents": "SurfQL Visualizer\n[View Schemas](command:surfql.previewSchema)"
+      }
     ]
   },
   "scripts": {
