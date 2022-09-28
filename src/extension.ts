@@ -186,8 +186,9 @@ export function activate(context: vscode.ExtensionContext) {
 					}
 					`;
 				*/
-				const currentSchemaBranch = traverseSchema(schema, history);
+				
 				//makesuggestion()
+				const currentSchemaBranch = traverseSchema(schema, history);
 				return offerSuggestions(currentSchemaBranch) as vscode.CompletionItem[];
 			}
 		},
@@ -199,7 +200,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 	vscode.workspace.onDidChangeTextDocument((e) => {
 
-		// name .... na...[na,] -> {
 		const lineNumber: number = e.contentChanges[0].range.start.line;
 		const characterNumber: number = e.contentChanges[0].range.start.character;
 		const line: string = e.document.lineAt(lineNumber).text;
