@@ -168,7 +168,7 @@ export async function activate(context: vscode.ExtensionContext) {
 					return autoCompleteAnywhere(schema, history);
 				}
 			},
-			'\n', '\r'
+			// '\n'
 		);
 		addTemporaryProvider(temporaryProvider);
 	});
