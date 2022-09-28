@@ -296,6 +296,11 @@ function createSchemaPrompt(): void {
 	// TODO: Add a message with an "Okay" button that will auto-generate a config
 	//       file for the user (if they press "Okay").
 	// TODO: The file created will be loaded with { "schema": "./your-file-here/graphql" }
+	
+	// Idea:
+	// Instead of creating a surfql.json (config) file, auto-suggest for files /
+	// prompt the user to select files.
+	// Also an ability to remove query files to allow user to switch graphql files within same usage instance.
 }
 
 //Out-of-scope features pre-presentation
