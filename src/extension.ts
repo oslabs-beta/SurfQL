@@ -42,7 +42,7 @@ export async function activate(context: vscode.ExtensionContext) {
 					canSelectMany: false,
 					openLabel: "Open",
 					filters: {
-						"graphqls files": ["graphql", "graphqls", "ts", "js"],
+						"graphqlsFiles": ["graphql", "graphqls", "ts", "js"],
 					},
 				};
 
@@ -84,19 +84,19 @@ export async function activate(context: vscode.ExtensionContext) {
 				panel.webview.html = getWebViewContent(
 					scriptSrc.toString(),
 					styleSrc.toString()
-				);
+      			);
 
 				//add event listener to webview
 				panel.webview.onDidReceiveMessage((message) => {
 					console.log("message1", message);
 					if (message.command === "get schema text") {
 						let schemaText = fs.readFileSync(schemaPath, "utf8");
-						const [schemaArr, returnObj] = parser(schemaText);
+						const [root, queryMutation, enumArr, inputArr, returnObj] = parser(schemaText);
 						console.log(returnObj);
 						schema = createNestedObj(returnObj);
 						panel.webview.postMessage({
 							command: "sendSchemaInfo",
-							text: JSON.stringify(schemaArr),
+							text: JSON.stringify([root, queryMutation, enumArr, inputArr]),
 						});
 					}
 					return;
@@ -107,84 +107,15 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(previewSchema);
 
-	
-	// Each provider is a set of rules, for what needs to be typed, to create suggestions
-	// Providers are similar to event listeners
-	const exampleProvider: vscode.Disposable = vscode.languages.registerCompletionItemProvider('javascript', {
-
-		provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext) {
-
-			// a simple completion item which inserts `Hello World!`
-			const simpleCompletion = new vscode.CompletionItem('Hello World!');
-
-			// a completion item that inserts its text as snippet,
-			// the `insertText`-property is a `SnippetString` which will be
-			// honored by the editor.
-			const snippetCompletion = new vscode.CompletionItem('Good part of the day');
-			snippetCompletion.insertText = new vscode.SnippetString('Good ${1|morning,afternoon,evening|}. It is ${1}, right?');
-			const docs : any = new vscode.MarkdownString("Inserts a snippet that lets you select [link](x.ts).");
-			snippetCompletion.documentation = docs;
-			docs.baseUri = vscode.Uri.parse('http://example.com/a/b/c/');
-
-			// a completion item that can be accepted by a commit character,
-			// the `commitCharacters`-property is set which means that the completion will
-			// be inserted and then the character will be typed.
-
-			//definitions
-			// CompletionItem is text that's suggested by VSCode to the user...
-			// - example: if you define completion item as chicken and type "chi" it will show "chicken"
-
-			//We need the completion item to basically be the next item in the query
-
-			const commitCharacterCompletion = new vscode.CompletionItem('chicken');
-			commitCharacterCompletion.commitCharacters = ['``'];
-			commitCharacterCompletion.documentation = new vscode.MarkdownString('Press `.` to get `console.`');
-
-			// a completion item that retriggers IntelliSense when being accepted,
-			// the `command`-property is set which the editor will execute after
-			// completion has been inserted. Also, the `insertText` is set so that
-			// a space is inserted after `new`
-			const commandCompletion = new vscode.CompletionItem('new');
-			commandCompletion.kind = vscode.CompletionItemKind.Keyword;
-			commandCompletion.insertText = 'new ';
-			commandCompletion.command = { command: 'editor.action.triggerSuggest', title: 'Re-trigger completions...' };
-
-			// return all completion items as array
-			return [
-				simpleCompletion,
-				snippetCompletion,
-				commitCharacterCompletion,
-				commandCompletion
-			];
-		}
-	});
-
 ////////////////////////
 //Suggestion Provider//
 ///////////////////////
+	// Each provider is a set of rules, for what needs to be typed, to create suggestions
+	// Providers are similar to event listeners
 	const suggestionProvider: vscode.Disposable = vscode.languages.registerCompletionItemProvider(
 		'javascript',
 		{
 			provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
-				// Removed to enable multi-line query auto-fill
-				// TODO: Break early when it can be determined that the cursor is not within a query string
-				// if (!linePrefix.includes("`")) {
-				// 	return undefined;
-				// }
-
-				// Need to code for instances with `query` before actual query
-				/* const QUERY_ALL_USERS = gql`
-  					query GetAllUsers {
-    				users {
-     				 id
-						name
-						age
-						username
-						nationality
-						}
-					}
-					`;
-				*/
 				const currentSchemaBranch = traverseSchema(schema, history);
 				//makesuggestion()
 				return offerSuggestions(currentSchemaBranch) as vscode.CompletionItem[];
@@ -193,7 +124,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		...triggerCharacters // => ['{', '`']
 	);
 
-	context.subscriptions.push(exampleProvider, suggestionProvider);
+	context.subscriptions.push(suggestionProvider);
 
 
 	vscode.workspace.onDidChangeTextDocument((e) => {
@@ -252,7 +183,8 @@ const getWebViewContent = (scriptSrc: String, styleSrc: String) => {
 					</head>
 					<body>
 						<h1>Schema Hierarchy</h1>
-						<div id='board'>Build a Nice Tree Structure</div>
+						<button id='refresh' type='button'>Refresh</button>
+						<div id='board'></div>
 						<script>
 							document.addEventListener('DOMcontentLoaded', () => {
 								const vscode = acquireVsCodeApi();
