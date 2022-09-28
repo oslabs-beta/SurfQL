@@ -34,24 +34,16 @@ class Enum {
   }
 };
 
-//build root variable
+//build root variable, nameBuilder works for type and interface
 function nameBuilder(string: string): [string, string | null] {
   const cleanstr = string.trim();
   if (cleanstr.includes(" ")) {
     const [variable, mid, interfaceVal] = cleanstr.split(" ");
-    console.log(mid);
     return [variable, interfaceVal];
   } else {
     let variable = cleanstr;
     return [variable, null];
   }
-  // for (let i = 0; i < cleanstr.length; i++) {
-  //   if (cleanstr[i] === " ") {
-  //     return variable;
-  //   }
-  //   variable += cleanstr[i];
-  // }
-  // return variable;
 }
 
 //use the function to build field and return array of [variable, current ending+1]
@@ -64,7 +56,6 @@ function fieldBuilder(string: string) {
     //split again by closing ) and save the second part
     const lastIndex = string.lastIndexOf(":");
     const typeInfo = `${string.slice(lastIndex + 1)}`;
-    console.log("typeInfo", typeInfo);
     return [variable, typeInfo];
   } else {
     // it's a regular type field
@@ -72,7 +63,6 @@ function fieldBuilder(string: string) {
     if (arr.length === 2) {
       const variable = arr[0].trim();
       const typeInfo = arr[1].trim();
-      // console.log("a")
       return [variable, typeInfo];
     } else {
       return [undefined];
@@ -81,6 +71,7 @@ function fieldBuilder(string: string) {
 }
 
 function parsingTypeInfo(string: string) {
+  //remove [ ] or ! if any
   const cleanStr = string.trim();
   let parsedType = "";
   let i = 0;
@@ -99,23 +90,36 @@ function parsingTypeInfo(string: string) {
   return parsedType;
 };
 
-//helper function to check para.
 
 
 export default function parser(text: string) {
+  //declare schema types
+  const schema = [];
+  //declare root array to story the root queries
+  const root: Array<any> = [];
+  //declare query type and mutation type
+  const queryMutation: Array<Root> = [];
+  //declare a enum array
+  const enumArr: Array<Enum> = [];
+  //declare a input array
+  const inputArr: Array<Root> = [];
 
-
-  //split the text into array lines
-
-  // Creating helper to check where to push the Object. if it is query or mutation, push to queryMutation
-  let currentArr = 'root';
-
+  //build up the constants
+  const typeIndex = 4;
+  const inputIndex = 5;
+  const interfaceIndex = 9;
+  const enumIndex = 4;
+  
   //declare status for parsing type, interface input
   let parsing = false;
   //declare status for checking parsing Enum
   let parsingEnum = false;
   //declare status for checking parsing Input
   let parsingInput = false;
+
+
+  let currentArr = 'root';
+  //when parsing initialized, build the right Object and push to the right array
   function typeSlicer(strEnd: number, cleanline: string) {
     const [variable, interfaceVal] = nameBuilder(cleanline.slice(strEnd));
     if (parsing) {
@@ -140,34 +144,19 @@ export default function parser(text: string) {
       currentArr = 'input';
     }
     curRoot = variable;
-    returnObj[curRoot] = {};
   }
 
-  const typeIndex = 4;
-  const inputIndex = 5;
-  const interfaceIndex = 9;
-  const enumIndex = 4;
-
+  
+  //start parsing--->//
   const arr = text.split(/\r?\n/);
-
-  //declare schema types
-  const schema = [];
-  //declare root array to story the root queries
-  const root: Array<any> = [];
-  //declare query type and mutation type
-  const queryMutation: Array<Root> = [];
-  //declare a enum array
-  const enumArr: Array<Enum> = [];
-  //declare a input array
-  const inputArr: Array<Root> = [];
   //read through line by line, conditional check
-  const returnObj = {} as any;
   let curRoot: string = "";
   arr.forEach((line) => {
     const cleanline = line.trim();
+    //check what type it is parsing now
     if (parsingEnum) {
       if (cleanline[0] === "}") {
-        parsingEnum = false; //is there situation people put {} in the schema??
+        parsingEnum = false; 
       } else if (cleanline.trim().length === 0) {
         //do nothing
       } else {
@@ -178,7 +167,7 @@ export default function parser(text: string) {
     };
     if (parsingInput) {
       if (cleanline[0] === "}") {
-        parsingInput = false; //is there situation people put {} in the schema??
+        parsingInput = false;
       } else if (cleanline.trim().length === 0) {
         //do nothing
       } else {
@@ -187,8 +176,8 @@ export default function parser(text: string) {
           inputArr[inputArr.length - 1].fields[variable] = parsingTypeInfo(typeInfo);
         }
       }
-    }
-    if (parsing) {
+    };
+    if (parsing) { //parsing query, mutation, interface, or regular type
       if (cleanline[0] === "}") {
         parsing = false;
       } else if (cleanline.trim().length === 0) {
@@ -200,11 +189,10 @@ export default function parser(text: string) {
             queryMutation[queryMutation.length - 1].fields[variable] = parsingTypeInfo(typeInfo);
           } else {
             root[root.length - 1].fields[variable] = parsingTypeInfo(typeInfo);
-            returnObj[curRoot][variable] = parsingTypeInfo(typeInfo);
           }
         }
       }
-    } else {
+    } else { //parsing the field within a type
       if (cleanline.slice(0, typeIndex) === "type") {
         parsing = true;
         typeSlicer(typeIndex, cleanline);
@@ -220,6 +208,7 @@ export default function parser(text: string) {
       }
     };
   });
+
   console.log(root, queryMutation, enumArr, inputArr);
-  return [root, queryMutation, enumArr, inputArr, returnObj];
+  return [root, queryMutation, enumArr, inputArr];
 };

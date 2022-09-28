@@ -17,7 +17,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const refreshBtn = document.querySelector("#refresh");
   refreshBtn.addEventListener("click", (e) => {
-    console.log("Refresh->,", e);
     board.innerHTML = "";
     getSchematext();
   });
@@ -26,7 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
 //add eventListener to the window
 window.addEventListener("message", (event) => {
   const message = event.data;
-  console.log("message2", event);
+  // console.log("message2", event);
   const text = message.text;
   //call parser
   if (message.command === "sendSchemaInfo") {
@@ -42,77 +41,72 @@ window.addEventListener("message", (event) => {
 
 // //display function
 function draw(qmArr, schemaArr, enumArr) {
+  //create enumLeaf array for check type logic
   const enumLeaf = [];
   enumArr.forEach((e) => {
     enumLeaf.push(e.name);
   });
-  console.log("enum leaf array", enumLeaf);
   const scalarTypes = ["Int", "Float", "String", "Boolean", "ID"];
-  const tree = document.createElement("div");
-  tree.setAttribute("class", "tree");
-  board.appendChild(tree);
-  //create root ul
-  const treeUL = document.createElement("ul");
-  tree.appendChild(treeUL);
+  //first div called Entry to demo query and mutation info
+  const entry = document.createElement("div");
+  entry.setAttribute("class", "tree");
+  board.appendChild(entry);
+  //create entry list ul
+  const entryUL = document.createElement("ul");
+  entry.appendChild(entryUL);
   //for every root in array we create a list item
   qmArr.forEach((root) => {
-    const li = document.createElement("li");
-    li.setAttribute("data-fields", JSON.stringify(root.fields));
-    li.setAttribute("class", "queryType-alt");
-    li.innerHTML = `<span>${root.name}</span>`;
-    //create childUL
-    const childUl = document.createElement("ul");
-    childUl.setAttribute("class", "fieldGroup");
+    const rootDisplay = document.createElement("li");
+    rootDisplay.setAttribute("class", "queryType-alt");
+    rootDisplay.innerHTML = `<span>${root.name}</span>`;
+    //create fieldDisplay
+    const fieldDisplay = document.createElement("ul");
+    fieldDisplay.setAttribute("class", "fieldGroup");
     for (const field in root.fields) {
-      //console.log("true", root.fields[field]);
-
-      //create buttons within li
+      //create a li for each key-value pair in the field.
       const childLi = document.createElement("li");
       childLi.setAttribute("class", "fieldType-alt");
-
+      //May not need to check the type since it is entry. but, keep for now.
       if (scalarTypes.includes(root.fields[field])) {
-        console.log(root.fields[field], "true");
         childLi.textContent = `${field}:${root.fields[field]}`;
       } else if (enumLeaf.includes(root.fields[field])) {
-        console.log("found enum leaf", root.fields[field]);
         childLi.textContent = `${field}:${root.fields[field]}`;
         childLi.setAttribute("font-weight", "600");
       } else {
+        //create buttons within li
         const btn = document.createElement("button");
         btn.textContent = `${field}:${root.fields[field]}`;
         btn.addEventListener("click", function (e) {
-          //check root.fields[field] === int, str, boolean, do nothing
           e.stopPropagation();
           const parent = e.target.parentNode;
+          //grab typeinfo from parent node.
           const [field, fieldtype] = parent.textContent.split(":");
-          console.log(field, fieldtype);
-          //if not, return root.field, add nested structure
-          // console.log(array);
+
           schemaArr.forEach((e) => {
             if (fieldtype === e.name) {
-              console.log("e", e);
-              drawNext(schemaArr, btn, e, enumLeaf); //array, btn buyer
+              drawNext(schemaArr, btn, e, enumLeaf); 
             }
           });
         });
         childLi.appendChild(btn);
       }
-      //append to list item
-
-      childUl.appendChild(childLi);
+      
+      //append to list fieldDisplay
+      fieldDisplay.appendChild(childLi);
       //hide children initially
-      childUl.hidden = true;
+      fieldDisplay.hidden = true;
       //TODO: eventlistener here
     }
-    li.appendChild(childUl);
-    li.addEventListener("click", function (e) {
-      //console.log(e.target);
-      //locate children
+
+    //append field display to root
+    rootDisplay.appendChild(fieldDisplay);
+    rootDisplay.addEventListener("click", function (e) {
       const children = this.querySelector("ul");
       children.hidden = !children.hidden;
     });
-    treeUL.appendChild(li);
-    //console.log(root);
+    //append rootDisplay to entry
+    entryUL.appendChild(rootDisplay);
+
   });
   return;
 }
@@ -120,38 +114,28 @@ function draw(qmArr, schemaArr, enumArr) {
 //function draw the next level fields
 function drawNext(array, node, rootObj, enumLeaf) {
   const arrayTypes = ["Int", "Float", "String", "Boolean", "ID"];
-  //console.log('drawNext, -> ', array, node, rootObj);
-  //create childUL
-  const childUl = document.createElement("ul");
-  childUl.setAttribute("class", "fieldGroup");
+  //create field display
+  const fieldDisplay = document.createElement("ul");
+  fieldDisplay.setAttribute("class", "fieldGroup");
   for (const field in rootObj.fields) {
-    //create buttons within li
-
     const childLi = document.createElement("li");
     childLi.setAttribute("class", "fieldType-alt");
-
+    //check the type to see if it is leaf
     if (arrayTypes.includes(rootObj.fields[field])) {
       childLi.textContent = `${field}:${rootObj.fields[field]}`;
     } else if (enumLeaf.includes(rootObj.fields[field])) {
       childLi.textContent = `${field}:${rootObj.fields[field]}`;
       childLi.setAttribute("style", "color:green");
     } else {
+      //create buttons within li
       const btn = document.createElement("button");
-
       btn.textContent = `${field}:${rootObj.fields[field]}`;
       //append to list item
       childLi.appendChild(btn);
-      //hide children initially
-      // childUl.hidden = true;
       btn.addEventListener("click", function (e) {
-        console.log("text");
-        //check root.fields[field] === int, str, boolean, do nothing
         e.stopPropagation();
         const parent = e.target.parentNode;
         const [field, fieldtype] = parent.textContent.split(":");
-        console.log(field, fieldtype);
-        //if not, return root.field, add nested structure
-        console.log(array);
         array.forEach((e) => {
           if (fieldtype === e.name) {
             drawNext(array, btn, e, enumLeaf);
@@ -160,15 +144,14 @@ function drawNext(array, node, rootObj, enumLeaf) {
       });
     }
 
-    childUl.appendChild(childLi);
+    fieldDisplay.appendChild(childLi);
   }
-  //node is the button but we want to appendUl
+  //node is the button but we want to the parent of the button
   node.addEventListener("click", function (e) {
-    //locate children
+    //locate children ul
     const children = this.parentNode.querySelector("ul");
-    console.log("children", children);
     children.hidden = !children.hidden;
   });
-  node.parentNode.appendChild(childUl);
+  node.parentNode.appendChild(fieldDisplay);
   return;
 }
