@@ -13,6 +13,7 @@ import { offerSuggestions, traverseSchema, parseQuery,
 
 let schema: any;
 let schemaPaths: string[] = [];
+let queryEntry: any;
 
 let history: any[] = [];
 const triggerCharacters: string[] = ['`', '{'];
@@ -21,7 +22,9 @@ const triggerCharacters: string[] = ['`', '{'];
 export async function activate(context: vscode.ExtensionContext) {
 	// At startup
   console.log('SurfQL is now active 🌊');
-	[ schema, schemaPaths ] = await configToSchema(); // Parse schema files from the config file
+	[ queryEntry, schema, schemaPaths ] = await configToSchema(); // Parse schema files from the config file
+	console.log('schema', schema);
+	console.log('queryEntry', queryEntry);
 
   // The command has been defined in the package.json file
   // Now provide the implementation of the command with registerCommand
@@ -75,7 +78,6 @@ export async function activate(context: vscode.ExtensionContext) {
 					path.join(context.extensionPath, "stylesheet", "preview.css")
 				);
 
-				console.log("on disk path", onDiskPath);
 				//add the previewjs to panel as a accessible Uri
 				const scriptSrc = panel.webview.asWebviewUri(onDiskPath);
 				const styleSrc = panel.webview.asWebviewUri(styleSheetPath);
@@ -88,15 +90,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
 				//add event listener to webview
 				panel.webview.onDidReceiveMessage((message) => {
-					console.log("message1", message);
 					if (message.command === "get schema text") {
 						let schemaText = fs.readFileSync(schemaPath, "utf8");
-						const [root, queryMutation, enumArr, inputArr, returnObj] = parser(schemaText);
-						console.log(returnObj);
-						schema = createNestedObj(returnObj);
+						const [objectArr, queryMutation, enumArr, inputArr] = parser(schemaText);
 						panel.webview.postMessage({
 							command: "sendSchemaInfo",
-							text: JSON.stringify([root, queryMutation, enumArr, inputArr]),
+							text: JSON.stringify([objectArr, queryMutation, enumArr]),
 						});
 					}
 					return;
@@ -216,13 +215,21 @@ function createNestedObj(obj: any) {
         }
     };
     return obj;
+};
+
+function arrToObj(arr: Array<any>) {
+	const result: any = {};
+	arr.forEach(el => {
+		result[el.name] = el.fields;
+	});
+	return result;
 }
 
 /**
  * Searches the root directory of the user's workspace for a schema config file.
  * The config file is used to locate the correct schema files to parse.
  */
-async function configToSchema(): Promise<[any, string[]]> {
+async function configToSchema(): Promise<[any, any, string[]]> {
 	// Attempt to file the SurfQL config file within the user's workspace.
 	const filepath: string | undefined = await vscode.workspace.findFiles('**/surfql.json', '**/node_modules/**', 1).then(([ uri ]: vscode.Uri[]) => {
 		// When no file was found:
@@ -238,7 +245,7 @@ async function configToSchema(): Promise<[any, string[]]> {
 	// Exit early when there is was no SurfQL config file found.
 	if (!filepath) {
 		console.log('No config file found at extension startup');
-		return [undefined, []]; // Return nothing
+		return [undefined, undefined, []]; // Return nothing
 	}
 
 	// Parse the config file to determine where the schema file(s) are.
@@ -248,9 +255,12 @@ async function configToSchema(): Promise<[any, string[]]> {
 
 	// Read the schema file and parse it into a usable object.
 	const schemaText = fs.readFileSync(schemaPath, "utf8");
-	const [, schemaObj] = parser(schemaText);
-	const usableSchemaObj = createNestedObj(schemaObj);
-	return [usableSchemaObj, [schemaPath]];
+	// const [, schemaObj] = parser(schemaText);
+	const [objectArr, queryMutation, enumArr, inputArr] = parser(schemaText);
+	const queryEntry = arrToObj(queryMutation);
+	const schemaObject = arrToObj(objectArr);
+	// const usableSchemaObj = createNestedObj(schemaObj);
+	return [queryEntry, schemaObject, [schemaPath]];
 }
 
 function createSchemaPrompt(): void {
