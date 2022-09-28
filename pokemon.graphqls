@@ -4,7 +4,7 @@ type schema {
 }
 
 type Query {
-  Pokemon: String!
+  pokemon: Pokemon
 }
 
 interface Pokemon {
