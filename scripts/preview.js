@@ -34,23 +34,27 @@ window.addEventListener("message", (event) => {
       message.text
     );
     console.log("here it comes", [schemaArr, queryMutation, enumArr, inputArr]);
-    draw(queryMutation, schemaArr, enumArr);
+    draw(queryMutation, schemaArr, enumArr, inputArr);
     return;
   }
 });
 
 // //display function
-function draw(qmArr, schemaArr, enumArr) {
+function draw(qmArr, schemaArr, enumArr, inputArr) {
   //create enumLeaf array for check type logic
   const enumLeaf = [];
   enumArr.forEach((e) => {
     enumLeaf.push(e.name);
   });
   const scalarTypes = ["Int", "Float", "String", "Boolean", "ID"];
+
   //first div called Entry to demo query and mutation info
   const entry = document.createElement("div");
   entry.setAttribute("class", "tree");
   board.appendChild(entry);
+  const category = document.createElement("h3");
+  category.innerHTML = "Entry Points";
+  entry.appendChild(category);
   //create entry list ul
   const entryUL = document.createElement("ul");
   entry.appendChild(entryUL);
@@ -90,12 +94,12 @@ function draw(qmArr, schemaArr, enumArr) {
         });
         childLi.appendChild(btn);
       }
-      
       //append to list fieldDisplay
       fieldDisplay.appendChild(childLi);
       //hide children initially
       fieldDisplay.hidden = true;
       //TODO: eventlistener here
+      
     }
 
     //append field display to root
@@ -108,6 +112,60 @@ function draw(qmArr, schemaArr, enumArr) {
     entryUL.appendChild(rootDisplay);
 
   });
+
+  //Second div to save input type
+  const inputBox = document.createElement("div");
+  inputBox.setAttribute("class", "tree");
+  board.appendChild(inputBox);
+  const category2 = document.createElement("h3");
+  category2.innerHTML = "Input Types";
+  inputBox.appendChild(category2);
+  inputArr.forEach((root) => {
+    const rootDisplay = document.createElement("li");
+    rootDisplay.setAttribute("class", "queryType-alt");
+    rootDisplay.innerHTML = `<span>${root.name}</span>`;
+    //create fieldDisplay
+    const fieldDisplay = document.createElement("ul");
+    fieldDisplay.setAttribute("class", "fieldGroup");
+    for (const field in root.fields) {
+      //create a li for each key-value pair in the field.
+      const childLi = document.createElement("li");
+      childLi.setAttribute("class", "fieldType-alt");
+      //May not need to check the type since it is entry. but, keep for now.
+      childLi.textContent = `${field}:${root.fields[field]}`;
+      //append to list fieldDisplay
+      fieldDisplay.appendChild(childLi);
+      //hide children initially
+      fieldDisplay.hidden = true;
+      //TODO: eventlistener here
+    };
+
+    //append field display to root
+    rootDisplay.appendChild(fieldDisplay);
+    rootDisplay.addEventListener("click", function (e) {
+      const children = this.querySelector("ul");
+      children.hidden = !children.hidden;
+    });
+    //append rootDisplay to entry
+    inputBox.appendChild(rootDisplay);
+  });
+  
+
+
+  //Third div to save Enum type
+  const enumBox = document.createElement("div");
+  enumBox.setAttribute("class", "tree");
+  board.appendChild(enumBox);
+  const category3 = document.createElement("h3");
+  category3.innerHTML = "Enumeration Types";
+  enumBox.appendChild(category3);
+  enumArr.forEach(el => {
+    const enumDisplay = document.createElement("span");
+    enumDisplay.setAttribute('class', 'enumDisplay');
+    enumDisplay.innerHTML = `${el.name}: ${JSON.stringify(el.value)}`;
+    enumBox.appendChild(enumDisplay);
+  });
+
   return;
 }
 

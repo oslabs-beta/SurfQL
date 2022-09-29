@@ -95,7 +95,7 @@ export async function activate(context: vscode.ExtensionContext) {
 						const [objectArr, queryMutation, enumArr, inputArr] = parser(schemaText);
 						panel.webview.postMessage({
 							command: "sendSchemaInfo",
-							text: JSON.stringify([objectArr, queryMutation, enumArr]),
+							text: JSON.stringify([objectArr, queryMutation, enumArr, inputArr]),
 						});
 					}
 					return;
