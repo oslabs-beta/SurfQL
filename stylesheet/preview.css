@@ -96,6 +96,11 @@
   font-weight: 400;
 }
 
+.enumDisplay {
+  border-bottom: 2px solid white;
+  padding-left: 25px;
+}
+
 @media (min-width: 768px) {
   .button {
     min-width: 120px;
