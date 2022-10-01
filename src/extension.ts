@@ -93,15 +93,23 @@ export async function activate(context: vscode.ExtensionContext) {
 					if (message.command === "get schema text") {
 						let schemaText = fs.readFileSync(schemaPath, "utf8");
 						const [objectArr, queryMutation, enumArr, inputArr] = parser(schemaText);
+						schema = {
+							objectArr,
+							queryMutation,
+							enumArr,
+							inputArr 
+						};
 						panel.webview.postMessage({
 							command: "sendSchemaInfo",
 							text: JSON.stringify([objectArr, queryMutation, enumArr, inputArr]),
 						});
 					}
+					console.log('the schema is', schema)
 					return;
 				});
 			}
     }
+	
   );
 
   context.subscriptions.push(previewSchema);
@@ -115,6 +123,21 @@ export async function activate(context: vscode.ExtensionContext) {
 		'javascript',
 		{
 			provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
+				//we need to have entry point be the query
+
+				// if query exists, unshift to history Trainer)
+
+				//history = [Trainer, Pokemon, type, electric]
+
+				// if (trainer['Pokeball'] != endBranchArray && Pokeball is found within the object) -> go to Pokeball object
+				//return its properties else return []
+
+				// ['', 'Pokemon' ]
+
+				// pokemon -> type -> eletric -> [voltage]
+				// type voltage 
+				// 
+
 				const currentSchemaBranch = traverseSchema(schema, history);
 				//makesuggestion()
 				return offerSuggestions(currentSchemaBranch) as vscode.CompletionItem[];

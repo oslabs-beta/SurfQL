@@ -23,9 +23,28 @@ export function offerSuggestions(branch: string[]): CompletionItem[] {
  * @param history An array representing the traversal path for the obj.
  * @returns The properties/keys at the end of the traversed object.
  */
-export function traverseSchema(schema: any, history: string[]): string[] {
+export function traverseSchema(type: any, history: string[]): string[] {
+    // An approach to using the history with our schema to create valid suggestions:
+    // [ Query, Trainer, Pokemon ] => Properties inside Pokemon
+    // Function 1:
+    // - Reference entry points inside history (Query => Trainer)
+    // - Depending on the entry point (Query, Mutation, etc...) traverse it with function 2
+    // Function 2:
+    // - Function 2 varies and is the correct traversal function
+    // - For Query, we use traverseSchema with Trainer passed in as its type parameter
+
+    // Logic for traverseSchema:
+    // history: [ Query, Trainer, Pokemon, Breed ]
+    // history: [ Pokemon, Breed ]
+    // If breed is = primitive, end of branch + return []
+    // if breed is not found in the types (undefined), return []
+    // - Types[Breeed] => undefined
+    // if breed is a type, navigate to that type, and display its properties
+    // - Types[Breed] => Breed
+    // - - Return all the properties of Breed
+
     // If our obj isn't an object we have hit the end of our traversal
-	if (typeof schema !== 'object') {
+	if (typeof type !== 'object') {
         //pokemon - type - electric
         // Check if its incomplete (ex: na... -> name)
 		console.log('you\'ve reached the end of the object!');
@@ -38,10 +57,22 @@ export function traverseSchema(schema: any, history: string[]): string[] {
     else if (history.length === 0) {
         // history: electr
         // schema: { electric: { move } } 
-		return Object.keys(schema);
+        //console.log('keys of level', Object.keys(schema.objectArr))
+        const filteredResult = type.objectArr.filter(obj => {
+            console.log('the current obj is', obj);
+            console.log('the name is', obj.name);
+            return obj.name !== 'Trainer';
+        });
+        const nameOptions = filteredResult.map(obj => obj.name);
+        console.log('the filtered result is', filteredResult);
+        console.log('the mapped results are', nameOptions);
+        
+		return nameOptions;
 	}
 	// Traverse until and end is reached
-  return traverseSchema(schema[history[0]], history.slice(1));
+    // [ Trainer, Pokemon, Breed ] -> [ Pokemon, Breed ]
+    // Pokemon -> breed -> male/female
+  return traverseSchema(type[history[0]], history.slice(1));
 };
 
 //TODO
