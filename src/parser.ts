@@ -34,6 +34,18 @@ class Enum {
   }
 };
 
+class SingleArg {
+  name: string;
+  type: string;
+  defaultt: string
+  constructor(name: string, type: string, defaultt: string | null) {
+    this.name = name;
+    this.type = type;
+    this.defaultt = defaultt;
+  }
+};
+
+
 //build root variable, nameBuilder works for type and interface
 function nameBuilder(string: string): [string, string | null] {
   const cleanstr = string.trim();
@@ -48,7 +60,7 @@ function nameBuilder(string: string): [string, string | null] {
 
 //use the function to build field and return array of [variable, current ending+1]
 function fieldBuilder(string: string) {
-  //determine whether it is mutation resolver function, see if ( exists
+  //determine whether it has a argument/it is mutation type
   if (string.indexOf("(") > -1) {
     // it may be a resolver function that contains '(' and ')'
     let resArr = string.split("(");
@@ -56,6 +68,14 @@ function fieldBuilder(string: string) {
     //split again by closing ) and save the second part
     const lastIndex = string.lastIndexOf(":");
     const typeInfo = `${string.slice(lastIndex + 1)}`;
+    //TODO: build arguments
+    //grab the arguments
+    const totalArgtext = resArr[1].split(')')[0].trim();
+    const argArr: Array<any> = [];
+    //helper function
+    buildArg(argArr, totalArgtext);
+
+    
     return [variable, typeInfo];
   } else {
     // it's a regular type field
@@ -90,6 +110,9 @@ function parsingTypeInfo(string: string) {
   return parsedType;
 };
 
+function buildArg(argArray: Array<SingleArg>, totalArg: string) {
+  return;
+}
 
 
 export default function parser(text: string) {
