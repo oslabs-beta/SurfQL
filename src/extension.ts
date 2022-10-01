@@ -16,7 +16,7 @@ let schemaPaths: string[] = [];
 let queryEntry: any;
 
 let history: any[] = [];
-const triggerCharacters: string[] = ['`', '{'];
+const triggerCharacters: string[] = ['{'];
 
 // This function will only be executed when the extension is activated.
 export async function activate(context: vscode.ExtensionContext) {
@@ -138,12 +138,45 @@ export async function activate(context: vscode.ExtensionContext) {
 				// type voltage 
 				// 
 
-				const currentSchemaBranch = traverseSchema(schema, history);
+				// entryHistory = [Query, Trainer]
+
+				/*
+				
+				*/
+
+				
+				function suggestOptions(): string[] {
+				// If the first history element is: Query
+				const entry = history[0].replace('`', '');
+				if (entry === 'query') {
+					// - Run traverseSchema and pass in the 2nd history element
+					const correctEntry = schema.queryMutation.find(entry => entry.name === 'Query');
+					if (history.length > 1) {
+						const type = schema.objArr.find(obj => Object.values(correctEntry.fields)[0]); // correctEntry['Trainer']
+						return traverseSchema(type, history); // TODO: Trim history first
+					}
+					else {
+						return Object.values(correctEntry.fields); //array with the first element as the query name
+					} 
+						
+					// Else if the first history element is: Query BUT there is no 2nd history element
+					// - Return all the possible entry points
+				} else if(history[0] === 'mutation') {
+					console.log('Mutation isn\'t supported.');
+				} else {
+					console.log('Query was not used. Need to add support for', history[0]);
+				}
+				
+
+				}
+
+				const options = suggestOptions();
+
 				//makesuggestion()
-				return offerSuggestions(currentSchemaBranch) as vscode.CompletionItem[];
+				return offerSuggestions(options) as vscode.CompletionItem[];
 			}
 		},
-		...triggerCharacters // => ['{', '`']
+		...triggerCharacters // => ['{']
 	);
 
 	context.subscriptions.push(suggestionProvider);
