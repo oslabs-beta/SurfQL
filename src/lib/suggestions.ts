@@ -1,5 +1,6 @@
 import { CompletionItem, CompletionItemKind, SnippetString, TextDocument } from 'vscode';
-import { indentation, primatives } from '../constants';
+import { indentation } from '../constants';
+import { Schema, QueryEntry, SchemaType } from './models';
 
 /**
  * Navigates current branch and offers suggestions to VSCode Extension
@@ -24,9 +25,9 @@ export function offerSuggestions(branch: string[]): CompletionItem[] {
  * @param history An array representing how far into the query the user has traversed so far in the query they're constructing.
  * @returns An array of suggestion strings.
  */
-export function suggestOptions(schema: any, queryEntry: any, history: string[]): string[] {
+export function suggestOptions(schema: Schema, queryEntry: QueryEntry, history: string[]): string[] {
     // TODO:
-    // Refactor because there are only 2 operations and 1 other type (subscribe).
+    // Refactor because there are only 2 operations and 1 other entry type (subscribe).
     
     const firstWord: string = history[0].replace('`', ''); // Remove any attached backticks
     // Parse the document handling a query initiated with a query operator.
@@ -37,14 +38,14 @@ export function suggestOptions(schema: any, queryEntry: any, history: string[]):
         // If the firstWord was found as a valid entry point (Query, Mutation, Subscription):
         if (queryOperationIndex) {
             // Reference the actual entry object (Query, Mutation, Subscription)
-            const queryOperation: any = queryEntry[queryOperationIndex];
+            const queryOperation: any = queryEntry[queryOperationIndex]; // TODO: Replace 'any'
             if (history.length > 1) {
                 const firstType: string = history[1];
                 // Validate that the type is an entry point within the operation (Query, Mutation, Subscription).
-                const valid: boolean = Object.values(queryOperation).some(type => type === firstType);
+                const valid: boolean = Object.keys(queryOperation).some(key => queryOperation[key].returnType === firstType);
                 if (valid) {
                     // Reference the actual type object (The first type given after the query operator)
-                    const type: any = schema[firstType];
+                    const type: SchemaType = schema[firstType];
                     // Pair the schema with the history to traverse the schema to make suggestions
                     //  based off of how nested the user is currently inside the query.
                     return traverseSchema(schema, type, history.slice(2));
@@ -53,7 +54,7 @@ export function suggestOptions(schema: any, queryEntry: any, history: string[]):
                 return []; // Return no suggestions
             }
             else {
-                return Object.values(queryOperation.fields); //array with the first element as the query name
+                return Object.values(queryOperation.fields); // Array with the first element as the query name
             }
         }
         // If the first word was not found in the operations then exit
@@ -75,7 +76,8 @@ function matchKeyToCorrectCase(obj: any, key: string): string | void {
  * @param history An array representing the traversal path for the obj.
  * @returns The properties/keys at the end of the traversed object.
  */
-export function traverseSchema(schema: any, type: any, history: string[]): string[] {
+export function traverseSchema(schema: Schema, type: SchemaType, history: string[]): string[] {
+    console.log('Type:', type);
     // If our type isn't an object we have hit the end of our traversal
 	if (typeof type !== 'object') {
         console.log('You\'ve reached the end of the object!');
@@ -87,13 +89,13 @@ export function traverseSchema(schema: any, type: any, history: string[]): strin
 	}
 	// If we have hit the end of our history return the keys within type.
     else if (history.length === 0) {
-        const options = Object.keys(type);
+        const options: string[] = Object.keys(type);
         console.log('The options are', options.join(', '));
 		return options;
 	}
 	// Traverse until and end is reached
-    const nextType = schema[type[history[0]]];
-    return traverseSchema(schema, nextType, history.slice(1));
+    const nextType: SchemaType = schema[type[history[0]].returnType];
+    return traverseSchema(schema, nextType, history.slice(1)) as string[];
 };
 
 //TODO

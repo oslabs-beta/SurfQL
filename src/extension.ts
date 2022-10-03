@@ -10,12 +10,13 @@ import parser from "./parser";
 import { offerSuggestions, suggestOptions, parseQuery,
 	fixBadFormatting, ignoreParentheses, filterNestedPaths,
 	filterFlatPaths, updateHistory } from "./lib/suggestions";
+import { Schema, QueryEntry } from './lib/models';
 
-let schema: any;
-let queryEntry: any;
+let schema: Schema;
+let queryEntry: QueryEntry;
 let schemaPaths: string[] = [];
 
-let history: any[] = [];
+let history: string[] = [];
 const triggerCharacters: string[] = ['{'];
 
 // This function will only be executed when the extension is activated.
