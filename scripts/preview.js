@@ -71,15 +71,15 @@ function draw(qmArr, schemaArr, enumArr, inputArr) {
       const childLi = document.createElement("li");
       childLi.setAttribute("class", "fieldType-alt");
       //May not need to check the type since it is entry. but, keep for now.
-      if (scalarTypes.includes(root.fields[field])) {
-        childLi.textContent = `${field}:${root.fields[field]}`;
-      } else if (enumLeaf.includes(root.fields[field])) {
-        childLi.textContent = `${field}:${root.fields[field]}`;
+      if (scalarTypes.includes(root.fields[field].returnType)) {
+        childLi.textContent = `${field}:${root.fields[field].returnType}`;
+      } else if (enumLeaf.includes(root.fields[field].returnType)) {
+        childLi.textContent = `${field}:${root.fields[field].returnType}`;
         childLi.setAttribute("font-weight", "600");
       } else {
         //create buttons within li
         const btn = document.createElement("button");
-        btn.textContent = `${field}:${root.fields[field]}`;
+        btn.textContent = `${field}:${root.fields[field].returnType}`;
         btn.addEventListener("click", function (e) {
           e.stopPropagation();
           const parent = e.target.parentNode;
@@ -179,15 +179,15 @@ function drawNext(array, node, rootObj, enumLeaf) {
     const childLi = document.createElement("li");
     childLi.setAttribute("class", "fieldType-alt");
     //check the type to see if it is leaf
-    if (arrayTypes.includes(rootObj.fields[field])) {
-      childLi.textContent = `${field}:${rootObj.fields[field]}`;
-    } else if (enumLeaf.includes(rootObj.fields[field])) {
-      childLi.textContent = `${field}:${rootObj.fields[field]}`;
+    if (arrayTypes.includes(rootObj.fields[field].returnType)) {
+      childLi.textContent = `${field}:${rootObj.fields[field].returnType}`;
+    } else if (enumLeaf.includes(rootObj.fields[field].returnType)) {
+      childLi.textContent = `${field}:${rootObj.fields[field].returnType}`;
       childLi.setAttribute("style", "color:green");
     } else {
       //create buttons within li
       const btn = document.createElement("button");
-      btn.textContent = `${field}:${rootObj.fields[field]}`;
+      btn.textContent = `${field}:${rootObj.fields[field].returnType}`;
       //append to list item
       childLi.appendChild(btn);
       btn.addEventListener("click", function (e) {
