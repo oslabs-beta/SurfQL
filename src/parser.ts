@@ -14,7 +14,10 @@
 //Takes in Mutation and Query type.
 //Handling Interface
 
-class Root {
+//Parser V4:
+//Takes Argument
+
+class Root { //Class for regular, query, mutation, interface type
   name: string;
   fields: any;
   interface: string | null;
@@ -25,7 +28,7 @@ class Root {
   }
 };
 
-class Enum {
+class Enum { //class for enumeration type
   name: string;
   value: string[];
   constructor(val: string) {
@@ -34,19 +37,37 @@ class Enum {
   }
 };
 
-class SingleArg {
-  name: string;
-  type: string;
-  defaultt: string
+class FieldInfo { //class for the field of the Root class
+  returnType: string;
+  arguments: any;
+  constructor(type: string, argArr: null | Array<SingleArg>) {
+    this.returnType = type;
+    this.arguments = argArr;
+  };
+}
+
+class SingleArg { //class for the argument of rht field class
+  argName: string;
+  inputType: string;
+  defaultValue: string;
   constructor(name: string, type: string, defaultt: string | null) {
-    this.name = name;
-    this.type = type;
-    this.defaultt = defaultt;
+    this.argName = name;
+    this.inputType = type;
+    this.defaultValue= defaultt;
+  }
+};
+
+class Input { //class for input type
+  name: string;
+  fields: any;
+  constructor(val: string) {
+    this.name = val;
+    this.fields = {};
   }
 };
 
 
-//build root variable, nameBuilder works for type and interface
+//build root Object, nameBuilder works for type and interface
 function nameBuilder(string: string): [string, string | null] {
   const cleanstr = string.trim();
   if (cleanstr.includes(" ")) {
@@ -58,38 +79,85 @@ function nameBuilder(string: string): [string, string | null] {
   }
 }
 
-//use the function to build field and return array of [variable, current ending+1]
-function fieldBuilder(string: string) {
+//FieldBuilder for root Object, use the function to build field and return array of [variable, current ending+1]
+function fieldBuilder(string: string): Array<any> {
   //determine whether it has a argument/it is mutation type
   if (string.indexOf("(") > -1) {
     // it may be a resolver function that contains '(' and ')'
     let resArr = string.split("(");
-    const variable = `${resArr[0].trim()}()`;
+    const fieldName = `${resArr[0].trim()}()`;
     //split again by closing ) and save the second part
     const lastIndex = string.lastIndexOf(":");
     const typeInfo = `${string.slice(lastIndex + 1)}`;
-    //TODO: build arguments
-    //grab the arguments
+    //grab the argument text and parse it
     const totalArgtext = resArr[1].split(')')[0].trim();
-    const argArr: Array<any> = [];
-    //helper function
-    buildArg(argArr, totalArgtext);
-
-    
-    return [variable, typeInfo];
+    const argArr = buildArgArr(totalArgtext);
+    return [fieldName, typeInfo, argArr];
   } else {
     // it's a regular type field
     const arr = string.split(":");
     if (arr.length === 2) {
-      const variable = arr[0].trim();
+      const fieldName = arr[0].trim();
       const typeInfo = arr[1].trim();
-      return [variable, typeInfo];
+      return [fieldName, typeInfo, null];
     } else {
-      return [undefined];
+      return [undefined, undefined, undefined];
     }
   }
 }
 
+//helper function to build argsArr from argText
+function buildArgArr(totalArg: string): Array<SingleArg> {
+  const result = [];
+  let argName = "";
+  let returnType = "";
+  let defaultt = "";
+  let parsingType = false;
+  let parsingDefault = false;
+  for (let i = 0; i < totalArg.length; i++) {
+    if (totalArg[i] === ":") {
+      parsingType = true;
+    } else if (totalArg[i] === "=") {
+      parsingDefault = true;
+      parsingType = false;
+    } else if (totalArg[i] === ",") {
+      const newArg = new SingleArg(argName, returnType, defaultt.length === 0 ? null: defaultt);
+      result.push(newArg);
+      parsingDefault = false;
+      parsingType = false;
+      argName = "";
+      returnType = "";
+      defaultt = "";
+    } else {
+      if (totalArg[i] !== " ") {
+        if (parsingType) {
+          returnType += totalArg[i]; 
+        } else if (parsingDefault) {
+          defaultt += totalArg[i];
+        } else {
+          argName += totalArg[i];
+        }
+      }
+    }
+  }
+  const newArg = new SingleArg(argName, returnType, defaultt.length === 0 ? null: defaultt);
+  result.push(newArg);
+  parsingDefault = false;
+  parsingType = false;
+  return result;
+}
+
+//fieldbuilder for Input type fields.
+function inputFieldBuilder(string: string) {
+  const arr = string.split(":");
+  if (arr.length === 2) {
+    const variable = arr[0].trim();
+    const typeInfo = arr[1].trim();
+    return [variable, typeInfo];
+  }
+};
+
+//helper function to parsing returned Type for the field, cleaning up the bracket.
 function parsingTypeInfo(string: string) {
   //remove [ ] or ! if any
   const cleanStr = string.trim();
@@ -110,11 +178,6 @@ function parsingTypeInfo(string: string) {
   return parsedType;
 };
 
-function buildArg(argArray: Array<SingleArg>, totalArg: string) {
-  return;
-}
-
-
 export default function parser(text: string) {
   //declare schema types
   const schema = [];
@@ -125,7 +188,7 @@ export default function parser(text: string) {
   //declare a enum array
   const enumArr: Array<Enum> = [];
   //declare a input array
-  const inputArr: Array<Root> = [];
+  const inputArr: Array<Input> = [];
 
   //build up the constants
   const typeIndex = 4;
@@ -162,11 +225,11 @@ export default function parser(text: string) {
       enumArr.push(newEnum);
       currentArr = 'enum';
     } else if (parsingInput) {
-      const newRoot: Root = new Root(variable, interfaceVal);
-      inputArr.push(newRoot);
+      const newInput: Input = new Input(variable);
+      inputArr.push(newInput);
       currentArr = 'input';
     }
-    curRoot = variable;
+    // curRoot = variable;
   }
 
   
@@ -194,7 +257,7 @@ export default function parser(text: string) {
       } else if (cleanline.trim().length === 0) {
         //do nothing
       } else {
-        const [variable, typeInfo] = fieldBuilder(cleanline);
+        const [variable, typeInfo] = inputFieldBuilder(cleanline);
         if (variable && typeInfo) {
           inputArr[inputArr.length - 1].fields[variable] = parsingTypeInfo(typeInfo);
         }
@@ -206,12 +269,14 @@ export default function parser(text: string) {
       } else if (cleanline.trim().length === 0) {
         //do nothing
       } else {
-        const [variable, typeInfo] = fieldBuilder(cleanline);
-        if (variable && typeInfo) {
+        const [fieldName, typeInfo, argArr] = fieldBuilder(cleanline);
+        if (fieldName && typeInfo) {
+          const parsedType = parsingTypeInfo(typeInfo);
+          const newField = new FieldInfo(parsedType, argArr);
           if (currentArr === 'queryMutation') {
-            queryMutation[queryMutation.length - 1].fields[variable] = parsingTypeInfo(typeInfo);
+            queryMutation[queryMutation.length - 1].fields[fieldName] = newField;
           } else {
-            root[root.length - 1].fields[variable] = parsingTypeInfo(typeInfo);
+            root[root.length - 1].fields[fieldName] = newField;
           }
         }
       }
