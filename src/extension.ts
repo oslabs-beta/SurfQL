@@ -7,13 +7,13 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import parser from "./parser";
-import { offerSuggestions, traverseSchema, parseQuery,
+import { offerSuggestions, suggestOptions, parseQuery,
 	fixBadFormatting, ignoreParentheses, filterNestedPaths,
 	filterFlatPaths, updateHistory } from "./lib/suggestions";
 
 let schema: any;
-let schemaPaths: string[] = [];
 let queryEntry: any;
+let schemaPaths: string[] = [];
 
 let history: any[] = [];
 const triggerCharacters: string[] = ['{'];
@@ -93,18 +93,14 @@ export async function activate(context: vscode.ExtensionContext) {
 					if (message.command === "get schema text") {
 						let schemaText = fs.readFileSync(schemaPath, "utf8");
 						const [objectArr, queryMutation, enumArr, inputArr] = parser(schemaText);
-						schema = {
-							objectArr,
-							queryMutation,
-							enumArr,
-							inputArr 
-						};
+						schema = arrToObj(objectArr);
+						queryEntry = arrToObj(queryMutation);
 						panel.webview.postMessage({
 							command: "sendSchemaInfo",
 							text: JSON.stringify([objectArr, queryMutation, enumArr, inputArr]),
 						});
 					}
-					console.log('the schema is', schema)
+					console.log('the schema is', schema);
 					return;
 				});
 			}
@@ -122,57 +118,8 @@ export async function activate(context: vscode.ExtensionContext) {
 	const suggestionProvider: vscode.Disposable = vscode.languages.registerCompletionItemProvider(
 		'javascript',
 		{
-			provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
-				//we need to have entry point be the query
-
-				// if query exists, unshift to history Trainer)
-
-				//history = [Trainer, Pokemon, type, electric]
-
-				// if (trainer['Pokeball'] != endBranchArray && Pokeball is found within the object) -> go to Pokeball object
-				//return its properties else return []
-
-				// ['', 'Pokemon' ]
-
-				// pokemon -> type -> eletric -> [voltage]
-				// type voltage 
-				// 
-
-				// entryHistory = [Query, Trainer]
-
-				/*
-				
-				*/
-
-				
-				function suggestOptions(): string[] {
-				// If the first history element is: Query
-				const entry = history[0].replace('`', '');
-				if (entry === 'query') {
-					// - Run traverseSchema and pass in the 2nd history element
-					const correctEntry = schema.queryMutation.find(entry => entry.name === 'Query');
-					if (history.length > 1) {
-						const type = schema.objArr.find(obj => Object.values(correctEntry.fields)[0]); // correctEntry['Trainer']
-						return traverseSchema(type, history); // TODO: Trim history first
-					}
-					else {
-						return Object.values(correctEntry.fields); //array with the first element as the query name
-					} 
-						
-					// Else if the first history element is: Query BUT there is no 2nd history element
-					// - Return all the possible entry points
-				} else if(history[0] === 'mutation') {
-					console.log('Mutation isn\'t supported.');
-				} else {
-					console.log('Query was not used. Need to add support for', history[0]);
-				}
-				
-
-				}
-
-				const options = suggestOptions();
-
-				//makesuggestion()
+			provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {		
+				const options = suggestOptions(schema, queryEntry, history);
 				return offerSuggestions(options) as vscode.CompletionItem[];
 			}
 		},
@@ -311,7 +258,6 @@ async function configToSchema(): Promise<[any, any, string[]]> {
 
 	// Read the schema file and parse it into a usable object.
 	const schemaText = fs.readFileSync(schemaPath, "utf8");
-	// const [, schemaObj] = parser(schemaText);
 	const [objectArr, queryMutation, enumArr, inputArr] = parser(schemaText);
 	const queryEntry = arrToObj(queryMutation);
 	const schemaObject = arrToObj(objectArr);
