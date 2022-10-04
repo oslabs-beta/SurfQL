@@ -7,16 +7,17 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import parser from "./parser";
-import { offerSuggestions, traverseSchema, parseQuery,
+import { offerSuggestions, suggestOptions, parseQuery,
 	fixBadFormatting, ignoreParentheses, filterNestedPaths,
 	filterFlatPaths, updateHistory } from "./lib/suggestions";
+import { Schema, QueryEntry } from './lib/models';
 
-let schema: any;
+let schema: Schema;
+let queryEntry: QueryEntry;
 let schemaPaths: string[] = [];
-let queryEntry: any;
 
-let history: any[] = [];
-const triggerCharacters: string[] = ['`', '{'];
+let history: string[] = [];
+const triggerCharacters: string[] = ['{'];
 
 // This function will only be executed when the extension is activated.
 export async function activate(context: vscode.ExtensionContext) {
@@ -93,15 +94,19 @@ export async function activate(context: vscode.ExtensionContext) {
 					if (message.command === "get schema text") {
 						let schemaText = fs.readFileSync(schemaPath, "utf8");
 						const [objectArr, queryMutation, enumArr, inputArr] = parser(schemaText);
+						schema = arrToObj(objectArr);
+						queryEntry = arrToObj(queryMutation);
 						panel.webview.postMessage({
 							command: "sendSchemaInfo",
 							text: JSON.stringify([objectArr, queryMutation, enumArr, inputArr]),
 						});
 					}
+					console.log('the schema is', schema);
 					return;
 				});
 			}
     }
+	
   );
 
   context.subscriptions.push(previewSchema);
@@ -114,13 +119,12 @@ export async function activate(context: vscode.ExtensionContext) {
 	const suggestionProvider: vscode.Disposable = vscode.languages.registerCompletionItemProvider(
 		'javascript',
 		{
-			provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
-				const currentSchemaBranch = traverseSchema(schema, history);
-				//makesuggestion()
-				return offerSuggestions(currentSchemaBranch) as vscode.CompletionItem[];
+			provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {		
+				const options = suggestOptions(schema, queryEntry, history);
+				return offerSuggestions(options) as vscode.CompletionItem[];
 			}
 		},
-		...triggerCharacters // => ['{', '`']
+		...triggerCharacters // => ['{']
 	);
 
 	context.subscriptions.push(suggestionProvider);
@@ -255,7 +259,6 @@ async function configToSchema(): Promise<[any, any, string[]]> {
 
 	// Read the schema file and parse it into a usable object.
 	const schemaText = fs.readFileSync(schemaPath, "utf8");
-	// const [, schemaObj] = parser(schemaText);
 	const [objectArr, queryMutation, enumArr, inputArr] = parser(schemaText);
 	const queryEntry = arrToObj(queryMutation);
 	const schemaObject = arrToObj(objectArr);
