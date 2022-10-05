@@ -85,7 +85,7 @@ function fieldBuilder(string: string): Array<any> {
   if (string.indexOf("(") > -1) {
     // it may be a resolver function that contains '(' and ')'
     let resArr = string.split("(");
-    const fieldName = `${resArr[0].trim()}()`;
+    const fieldName = `${resArr[0].trim()}`;
     //split again by closing ) and save the second part
     const lastIndex = string.lastIndexOf(":");
     const typeInfo = `${string.slice(lastIndex + 1)}`;
@@ -239,6 +239,9 @@ export default function parser(text: string) {
   let curRoot: string = "";
   arr.forEach((line) => {
     const cleanline = line.trim();
+    if(cleanline[0] === "#" || cleanline[0] === "/"){
+      //do nothing
+    };
     //check what type it is parsing now
     if (parsingEnum) {
       if (cleanline[0] === "}") {
@@ -280,7 +283,7 @@ export default function parser(text: string) {
           }
         }
       }
-    } else { //parsing the field within a type
+    } else { //looking for the special initiator keywords
       if (cleanline.slice(0, typeIndex) === "type") {
         parsing = true;
         typeSlicer(typeIndex, cleanline);

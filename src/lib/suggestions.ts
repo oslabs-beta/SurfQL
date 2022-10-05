@@ -1,4 +1,4 @@
-import { CompletionItem, CompletionItemKind, SnippetString, TextDocument } from 'vscode';
+import { CompletionItem, CompletionItemKind, SnippetString, TextDocument, MarkdownString } from 'vscode';
 import { indentation } from '../constants';
 import { Schema, QueryEntry, SchemaType } from './models';
 
@@ -7,16 +7,50 @@ import { Schema, QueryEntry, SchemaType } from './models';
  * @param branch Passes in current branch 
  * @returns VSCode suggestions 
  */
-export function offerSuggestions(branch: string[]): CompletionItem[] {
+export function offerSuggestions(branch: SchemaType): CompletionItem[] {
     let suggestions: CompletionItem[] = [];
-    branch.forEach((option: string) => {
-        let tempCompItem = new CompletionItem(option, CompletionItemKind.Keyword); // What is displayed
-        tempCompItem.insertText = new SnippetString('\n' + indentation + option + '${0}\n'); // What is added
+    for (const key in branch) {
+        let tempCompItem = new CompletionItem(`${key}: Option returned type here`, CompletionItemKind.Keyword); // What is displayed
+        //TODO: build up right inserting snippet, if Argument (add argument).
+        if (branch[key].arguments) {
+            const insertText = buildArgSnippet(key, branch[key].arguments);
+            tempCompItem.insertText = new SnippetString('\n' + indentation + insertText + '${0}\n');
+        } else {
+            tempCompItem.insertText = new SnippetString('\n' + indentation + key + '${0}\n'); // What is added
+        }
         // tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
+        //TRY to do popup
+        tempCompItem.label = `${key}:   ${branch[key].returnType}, args: ${branch[key].arguments ? branch[key].arguments.length : 'None'}`;
+        tempCompItem.detail = `return type ${branch[key].returnType}`;
         suggestions.push(tempCompItem);
-    }); 
+    }
+    // branch.forEach((option: string) => {
+    //     let tempCompItem = new CompletionItem(`${option}: Option returned type here`, CompletionItemKind.Keyword); // What is displayed
+    //     tempCompItem.insertText = new SnippetString('\n' + indentation + option + '${0}\n'); // What is added
+    //     // tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
+    //     //TRY to do popup
+    //     tempCompItem.label = `${option}: type detail here`;
+    //     tempCompItem.documentation = new MarkdownString('option type here');
+    //     tempCompItem.detail = `return ${option} type detail here`;
+    //     suggestions.push(tempCompItem);
+    // }); 
     return suggestions;
 }
+
+const buildArgSnippet = (key: string, argArr: Array<any>) => {
+    let text = `${key}(`;
+    argArr.forEach((e,i) => {
+        text += `${e.argName}: ${e.inputType}`;
+        if (e.defaultValue) {
+            text += `= ${e.defaultValue}`;
+        };
+        if (i < argArr.length -1) {
+            text += ', ';
+        };
+    });
+    text += ')';
+    return text;
+};
 
 /**
  * Parses through the schema file based on the history to determine possible suggestions.
@@ -25,7 +59,7 @@ export function offerSuggestions(branch: string[]): CompletionItem[] {
  * @param history An array representing how far into the query the user has traversed so far in the query they're constructing.
  * @returns An array of suggestion strings.
  */
-export function suggestOptions(schema: Schema, queryEntry: QueryEntry, history: string[]): string[] {
+export function suggestOptions(schema: Schema, queryEntry: QueryEntry, history: string[]): SchemaType {
     // TODO:
     // Refactor because there are only 2 operations and 1 other entry type (subscribe).
     
@@ -42,23 +76,26 @@ export function suggestOptions(schema: Schema, queryEntry: QueryEntry, history: 
             if (history.length > 1) {
                 const firstType: string = history[1];
                 // Validate that the type is an entry point within the operation (Query, Mutation, Subscription).
-                const valid: boolean = Object.keys(queryOperation).some(key => queryOperation[key].returnType === firstType);
+                const valid: boolean = Object.keys(queryOperation).some(key => key === firstType);
                 if (valid) {
                     // Reference the actual type object (The first type given after the query operator)
-                    const type: SchemaType = schema[firstType];
+                    console.log('Compare', firstType, queryOperation[firstType].returnType);
+                    console.log(schema[queryOperation[firstType].returnType]);
+                    const type: SchemaType = schema[queryOperation[firstType].returnType];
+                    
                     // Pair the schema with the history to traverse the schema to make suggestions
                     //  based off of how nested the user is currently inside the query.
                     return traverseSchema(schema, type, history.slice(2));
                 }
                 // If the first type is not found within the entry points within the operation
-                return []; // Return no suggestions
+                return null; // Return no suggestions
             }
             else {
-                return Object.values(queryOperation.fields); // Array with the first element as the query name
+                return queryOperation; // Array with the first element as the query name
             }
         }
         // If the first word was not found in the operations then exit
-        return []; // Returning no suggestions
+        return null; // Returning no suggestions
     } else if(history[0] === 'mutation') {
         console.log('Mutation isn\'t supported.');
     } else {
@@ -76,12 +113,12 @@ function matchKeyToCorrectCase(obj: any, key: string): string | void {
  * @param history An array representing the traversal path for the obj.
  * @returns The properties/keys at the end of the traversed object.
  */
-export function traverseSchema(schema: Schema, type: SchemaType, history: string[]): string[] {
+export function traverseSchema(schema: Schema, type: SchemaType, history: string[]): SchemaType {
     console.log('Type:', type);
     // If our type isn't an object we have hit the end of our traversal
 	if (typeof type !== 'object') {
         console.log('You\'ve reached the end of the object!');
-		return [];
+		return null;
         // TODO: Check if its incomplete (ex: na... -> name)
         // if its the last history word
         // if it matches with anything else
@@ -89,13 +126,14 @@ export function traverseSchema(schema: Schema, type: SchemaType, history: string
 	}
 	// If we have hit the end of our history return the keys within type.
     else if (history.length === 0) {
+        console.log("look at type",type);
         const options: string[] = Object.keys(type);
         console.log('The options are', options.join(', '));
-		return options;
+		return type;
 	}
 	// Traverse until and end is reached
     const nextType: SchemaType = schema[type[history[0]].returnType];
-    return traverseSchema(schema, nextType, history.slice(1)) as string[];
+    return traverseSchema(schema, nextType, history.slice(1)) as SchemaType;
 };
 
 //TODO

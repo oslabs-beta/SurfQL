@@ -129,6 +129,22 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(suggestionProvider);
 
+	const hoverProvider: vscode.Disposable = vscode.languages.registerHoverProvider(
+		'javascript', 
+		{
+        	provideHover(document, position, token) {
+            const range = document.getWordRangeAtPosition(position);
+            const word = document.getText(range);
+			//TODO use word to search throught the available field and return Hover content
+			console.log("here", position);
+            return new vscode.Hover({
+                language: "graphQL",
+                value: `should return ${word} type`
+            });
+        }
+    });
+
+	context.subscriptions.push(hoverProvider);
 
 	vscode.workspace.onDidChangeTextDocument((e) => {
 		// Exit early when no schema has been loaded.
