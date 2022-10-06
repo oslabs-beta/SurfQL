@@ -15,6 +15,8 @@ import { Schema, QueryEntry } from './lib/models';
 let schema: Schema;
 let queryEntry: QueryEntry;
 let schemaPaths: string[] = [];
+let enumArr: Array<any> = [];
+let enumObj: any = {};
 
 let history: string[] = [];
 const triggerCharacters: string[] = ['{'];
@@ -23,9 +25,11 @@ const triggerCharacters: string[] = ['{'];
 export async function activate(context: vscode.ExtensionContext) {
 	// At startup
   console.log('SurfQL is now active 🌊');
-	[ queryEntry, schema, schemaPaths ] = await configToSchema(); // Parse schema files from the config file
+	[ queryEntry, schema, schemaPaths, enumArr ] = await configToSchema(); // Parse schema files from the config file
 	console.log('schema', schema);
 	console.log('queryEntry', queryEntry);
+	enumObj = enumToObj(enumArr);
+
 
   // The command has been defined in the package.json file
   // Now provide the implementation of the command with registerCommand
@@ -133,19 +137,22 @@ export async function activate(context: vscode.ExtensionContext) {
 		'javascript', 
 		{
         	provideHover(document, position, token) {
-            const range = document.getWordRangeAtPosition(position);
-            const word = document.getText(range);
-			//TODO use word to search throught the available field and return Hover content
-			console.log("here", position);
-            return new vscode.Hover({
-                language: "graphQL",
-                value: `should return ${word} type`
-            });
-        }
-    });
-
+				const range = document.getWordRangeAtPosition(position);
+				const word = document.getText(range);
+				console.log('Hover',word);
+				console.log("enumArr", enumObj);
+				if (enumObj[word]) {
+					return new vscode.Hover({
+						language: "graphQL",
+						value: `Enum Type, Choose from ${JSON.stringify(enumObj[word])}`
+					});
+				}
+			}
+		}
+    );
 	context.subscriptions.push(hoverProvider);
 
+	
 	vscode.workspace.onDidChangeTextDocument((e) => {
 		// Exit early when no schema has been loaded.
 		if (!schema) {
@@ -223,18 +230,14 @@ const getWebViewContent = (scriptSrc: String, styleSrc: String) => {
 export function deactivate() {}
 
 //modify the returned schemaObj
-function createNestedObj(obj: any) {
+function enumToObj(arr: Array<any> | null) {
     //loop through obj, for all valueObj, check if valueObj.key exist in obj.
     //if so, valueObj.key = obj.key, then call modifyObj on valueObj
-    for (const key in obj) {
-        for (const valueKey in obj[key]) {
-            if (obj[key][valueKey] in obj) {
-                obj[key][valueKey] = obj[obj[key][valueKey]];
-                createNestedObj(obj[key]);
-            }
-        }
-    };
-    return obj;
+	const enumObj = {};
+    arr.forEach(e => {
+		enumObj[e.name] = e.value;
+	})
+    return enumObj;
 };
 
 function arrToObj(arr: Array<any>) {
@@ -249,7 +252,7 @@ function arrToObj(arr: Array<any>) {
  * Searches the root directory of the user's workspace for a schema config file.
  * The config file is used to locate the correct schema files to parse.
  */
-async function configToSchema(): Promise<[any, any, string[]]> {
+async function configToSchema(): Promise<[any, any, string[], Array<any>]> {
 	// Attempt to file the SurfQL config file within the user's workspace.
 	const filepath: string | undefined = await vscode.workspace.findFiles('**/surfql.json', '**/node_modules/**', 1).then(([ uri ]: vscode.Uri[]) => {
 		// When no file was found:
@@ -265,7 +268,7 @@ async function configToSchema(): Promise<[any, any, string[]]> {
 	// Exit early when there is was no SurfQL config file found.
 	if (!filepath) {
 		console.log('No config file found at extension startup');
-		return [undefined, undefined, []]; // Return nothing
+		return [undefined, undefined, [], []]; // Return nothing
 	}
 
 	// Parse the config file to determine where the schema file(s) are.
@@ -279,7 +282,7 @@ async function configToSchema(): Promise<[any, any, string[]]> {
 	const queryEntry = arrToObj(queryMutation);
 	const schemaObject = arrToObj(objectArr);
 	// const usableSchemaObj = createNestedObj(schemaObj);
-	return [queryEntry, schemaObject, [schemaPath]];
+	return [queryEntry, schemaObject, [schemaPath], enumArr];
 }
 
 function createSchemaPrompt(): void {

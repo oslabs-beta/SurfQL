@@ -11,7 +11,6 @@ export function offerSuggestions(branch: SchemaType): CompletionItem[] {
     let suggestions: CompletionItem[] = [];
     for (const key in branch) {
         let tempCompItem = new CompletionItem(`${key}: Option returned type here`, CompletionItemKind.Keyword); // What is displayed
-        //TODO: build up right inserting snippet, if Argument (add argument).
         if (branch[key].arguments) {
             const insertText = buildArgSnippet(key, branch[key].arguments);
             tempCompItem.insertText = new SnippetString('\n' + indentation + insertText + '${0}\n');
@@ -37,13 +36,15 @@ export function offerSuggestions(branch: SchemaType): CompletionItem[] {
     return suggestions;
 }
 
+//TODO Iteration, snippet with $1, $2
 const buildArgSnippet = (key: string, argArr: Array<any>) => {
     let text = `${key}(`;
     argArr.forEach((e,i) => {
-        text += `${e.argName}: ${e.inputType}`;
         if (e.defaultValue) {
-            text += `= ${e.defaultValue}`;
-        };
+            text += `${e.argName}: ${e.defaultValue}`;
+        } else {
+            text += `${e.argName}: ${e.inputType}`;
+        }
         if (i < argArr.length -1) {
             text += ', ';
         };
