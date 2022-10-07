@@ -139,8 +139,6 @@ export async function activate(context: vscode.ExtensionContext) {
         	provideHover(document, position, token) {
 				const range = document.getWordRangeAtPosition(position);
 				const word = document.getText(range);
-				console.log('Hover',word);
-				console.log("enumArr", enumObj);
 				if (enumObj[word]) {
 					return new vscode.Hover({
 						language: "graphQL",

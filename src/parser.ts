@@ -238,7 +238,8 @@ export default function parser(text: string) {
   //read through line by line, conditional check
   let curRoot: string = "";
   arr.forEach((line) => {
-    const cleanline = line.trim();
+    const cleanline1 = line.trim();
+    const cleanline = cleanline1.split('//')[0];
     if(cleanline[0] === "#" || cleanline[0] === "/"){
       //do nothing
     };
