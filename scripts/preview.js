@@ -16,11 +16,13 @@ document.addEventListener("DOMContentLoaded", () => {
   getSchematext();
 
   const refreshBtn = document.querySelector("#refresh");
+  // refreshBtn.setAttribute("class", "btn btn-primary");
   refreshBtn.addEventListener("click", (e) => {
     board.innerHTML = "";
     getSchematext();
   });
 });
+
 
 //add eventListener to the window
 window.addEventListener("message", (event) => {
@@ -50,14 +52,13 @@ function draw(qmArr, schemaArr, enumArr, inputArr) {
 
   //first div called Entry to demo query and mutation info
   const entry = document.createElement("div");
-  entry.setAttribute("class", "tree");
+  entry.setAttribute("class", "container");
+  entry.setAttribute('style', 'padding: 10px');
   board.appendChild(entry);
-  const category = document.createElement("h3");
+  const category = document.createElement("h4");
   category.innerHTML = "Entry Points";
   entry.appendChild(category);
-  //create entry list ul
-  const entryUL = document.createElement("ul");
-  entry.appendChild(entryUL);
+  
   //for every root in array we create a list item
   qmArr.forEach((root) => {
     const rootDisplay = document.createElement("li");
@@ -71,14 +72,18 @@ function draw(qmArr, schemaArr, enumArr, inputArr) {
       const childLi = document.createElement("li");
       childLi.setAttribute("class", "fieldType-alt");
       //May not need to check the type since it is entry. but, keep for now.
-      if (scalarTypes.includes(root.fields[field].returnType)) {
-        childLi.textContent = `${field}:${root.fields[field].returnType}`;
-      } else if (enumLeaf.includes(root.fields[field].returnType)) {
-        childLi.textContent = `${field}:${root.fields[field].returnType}`;
-        childLi.setAttribute("font-weight", "600");
-      } else {
+      // if (scalarTypes.includes(root.fields[field].returnType)) {
+      //   childLi.textContent = `${field}:${root.fields[field].returnType}`;
+      // } else if (enumLeaf.includes(root.fields[field].returnType)) {
+      //   childLi.textContent = `${field}:${root.fields[field].returnType}`;
+      // } else {
         //create buttons within li
-        const btn = document.createElement("button");
+        const btn = document.createElement("a");
+        btn.setAttribute('href', "#");
+        //tool tip is not working as expected...
+        // btn.setAttribute('data-bs-toggle', "tooltip");
+        // btn.setAttribute('data-bs-placement', "right");
+        // btn.setAttribute('data-bs-title',`return ${root.fields[field].returnType}`);
         btn.textContent = `${field}:${root.fields[field].returnType}`;
         btn.addEventListener("click", function (e) {
           e.stopPropagation();
@@ -93,7 +98,7 @@ function draw(qmArr, schemaArr, enumArr, inputArr) {
           });
         });
         childLi.appendChild(btn);
-      }
+      // }
       //append to list fieldDisplay
       fieldDisplay.appendChild(childLi);
       //hide children initially
@@ -109,15 +114,16 @@ function draw(qmArr, schemaArr, enumArr, inputArr) {
       children.hidden = !children.hidden;
     });
     //append rootDisplay to entry
-    entryUL.appendChild(rootDisplay);
+    entry.appendChild(rootDisplay);
 
   });
 
   //Second div to save input type
   const inputBox = document.createElement("div");
-  inputBox.setAttribute("class", "tree");
+  inputBox.setAttribute("class", "container");
+  inputBox.setAttribute('style', 'padding: 10px');
   board.appendChild(inputBox);
-  const category2 = document.createElement("h3");
+  const category2 = document.createElement("h4");
   category2.innerHTML = "Input Types";
   inputBox.appendChild(category2);
   inputArr.forEach((root) => {
@@ -154,18 +160,29 @@ function draw(qmArr, schemaArr, enumArr, inputArr) {
 
   //Third div to save Enum type
   const enumBox = document.createElement("div");
-  enumBox.setAttribute("class", "tree");
+  enumBox.setAttribute("class", "container");
+  enumBox.setAttribute('style', 'padding: 10px');
   board.appendChild(enumBox);
-  const category3 = document.createElement("h3");
+  const category3 = document.createElement("h5");
   category3.innerHTML = "Enumeration Types";
   enumBox.appendChild(category3);
   enumArr.forEach(el => {
-    const enumDisplay = document.createElement("span");
-    enumDisplay.setAttribute('class', 'enumDisplay');
-    enumDisplay.innerHTML = `${el.name}: ${JSON.stringify(el.value)}`;
-    enumBox.appendChild(enumDisplay);
+    const enumD = document.createElement('div');
+    enumBox.appendChild(enumD);
+    const enumDisplay = document.createElement('a');
+    enumD.appendChild(enumDisplay);
+    enumDisplay.setAttribute('data-bs-toggle', 'collapse');
+    enumDisplay.setAttribute('href', `#E${el.name}`);
+    enumDisplay.setAttribute('style', "color:#16cfc6");
+    enumDisplay.innerHTML = el.name;
+    const enumChoices = document.createElement('div');
+    enumChoices.setAttribute('id', `E${el.name}`);
+    enumChoices.setAttribute('class', 'collapse');
+    enumChoices.innerHTML = `${el.value.join('   ')}`;
+    enumD.appendChild(enumChoices);
   });
 
+  console.log(enumBox);
   return;
 }
 
@@ -183,7 +200,7 @@ function drawNext(array, node, rootObj, enumLeaf) {
       childLi.textContent = `${field}:${rootObj.fields[field].returnType}`;
     } else if (enumLeaf.includes(rootObj.fields[field].returnType)) {
       childLi.textContent = `${field}:${rootObj.fields[field].returnType}`;
-      childLi.setAttribute("style", "color:green");
+      childLi.setAttribute("style", "color:#16cfc6");
     } else {
       //create buttons within li
       const btn = document.createElement("button");
@@ -212,4 +229,10 @@ function drawNext(array, node, rootObj, enumLeaf) {
   });
   node.parentNode.appendChild(fieldDisplay);
   return;
-}
+};
+
+const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+
+
+
