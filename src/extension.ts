@@ -210,7 +210,7 @@ const getWebViewContent = (scriptSrc: String, styleSrc: String) => {
 						</style>
 					</head>
 					<body>
-						<h1>Schema Hierarchy</h1>
+						<h2>Schema Hierarchy</h2>
 						<button type="Refresh" class="btn btn-light">Refresh</button>
 						<div id='board'></div>
 					</body>
