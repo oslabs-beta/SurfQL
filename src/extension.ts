@@ -227,7 +227,7 @@ const getWebViewContent = (scriptSrc: String, styleSrc: String, logoSrc: String)
 						<div class='d-flex justify-content-around align-items-center'>
 							<img src="${logoSrc}" alt="#" width="40" height="40">
 							<h2>Schema Hierarchy</h2>
-							<button type="button" id='refresh' class="btn btn-secondary">Refresh</button>
+							<button type="button" id='refresh' class="btn btn-secondary" style='color: #5fefd0'>Refresh</button>
 						</div>
 						<div id='board'></div>
 					</body>
