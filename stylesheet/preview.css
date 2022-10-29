@@ -1,7 +1,16 @@
+
+#navi_container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-left: 5em;
+  padding-right: 5em;
+}
+
 #board {
   border: 1px, solid, #fff;
 }
-
 
 .queryType-alt {
     border-radius: 10;
