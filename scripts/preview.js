@@ -1,15 +1,9 @@
 //document on load
-var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-  return new bootstrap.Tooltip(tooltipTriggerEl);
-});
+
 
 document.addEventListener("DOMContentLoaded", () => {
   //get board element
   const board = document.querySelector("#board");
-
-  //add a static message
-  //board.innerHTML = "Grow a beautiful tree";
 
   const vscode = acquireVsCodeApi();
   function getSchematext() {
@@ -21,7 +15,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const refreshBtn = document.querySelector("#refresh");
   refreshBtn.addEventListener("click", (e) => {
-    console.log("clickeddd");
     board.innerHTML = "";
     getSchematext();
   });
@@ -59,7 +52,7 @@ function draw(qmArr, schemaArr, enumArr, inputArr) {
   entry.setAttribute("class", "container");
   entry.setAttribute('style', 'padding: 10px');
   board.appendChild(entry);
-  const category = document.createElement("h4");
+  const category = document.createElement("h5");
   category.innerHTML = "Entry Points";
   entry.appendChild(category);
   
@@ -76,13 +69,17 @@ function draw(qmArr, schemaArr, enumArr, inputArr) {
       const childLi = document.createElement("li");
       childLi.setAttribute("class", "fieldType-alt");
       const btn = document.createElement("a");
+      btn.setAttribute('class', "notleaf");
       btn.setAttribute('href', "#");
-        //tool tip is not working as expected...
+        //tooltip
         btn.setAttribute('data-bs-toggle', "tooltip");
         btn.setAttribute('data-bs-placement', "right");
-        btn.setAttribute('data-bs-title',`return hey`);
+        btn.setAttribute('data-bs-trigger', 'hover');
+        btn.setAttribute('data-bs-title', `return ${root.fields[field].returnType} type`);
+        const tooltip = new bootstrap.Tooltip(btn);
       btn.textContent = `${field}: ${root.fields[field].returnType}`;
       btn.addEventListener("click", function (e) {
+        
         e.stopPropagation();
         const parent = e.target.parentNode;
         //grab typeinfo from parent node.
@@ -117,7 +114,7 @@ function draw(qmArr, schemaArr, enumArr, inputArr) {
   inputBox.setAttribute("class", "container");
   inputBox.setAttribute('style', 'padding: 10px');
   board.appendChild(inputBox);
-  const category2 = document.createElement("h4");
+  const category2 = document.createElement("h5");
   category2.innerHTML = "Input Types";
   inputBox.appendChild(category2);
 
@@ -138,6 +135,7 @@ function draw(qmArr, schemaArr, enumArr, inputArr) {
       } else {
         const btn = document.createElement("a");
         btn.setAttribute('href', "#");
+        btn.setAttribute('class', "notleaf");
         btn.textContent = `${field}: ${root.fields[field]}`;
         btn.addEventListener("click", function (e) {
           e.stopPropagation();
@@ -181,13 +179,14 @@ function draw(qmArr, schemaArr, enumArr, inputArr) {
   category3.innerHTML = "Enumeration Types";
   enumBox.appendChild(category3);
   enumArr.forEach(el => {
-    const enumD = document.createElement('div');
+    const enumD = document.createElement('li');
     enumBox.appendChild(enumD);
     const enumDisplay = document.createElement('a');
     enumD.appendChild(enumDisplay);
     enumDisplay.setAttribute('data-bs-toggle', 'collapse');
     enumDisplay.setAttribute('href', `#E${el.name}`);
-    enumDisplay.setAttribute('style', "color:#16cfc6");
+    enumDisplay.setAttribute('style', "color:rgb(170,170,170");
+    enumDisplay.setAttribute('class', "notleaf");
     enumDisplay.innerHTML = el.name;
     const enumChoices = document.createElement('div');
     enumChoices.setAttribute('id', `E${el.name}`);
@@ -214,11 +213,22 @@ function drawNext(array, node, rootObj, enumLeaf) {
       childLi.textContent = `${field}: ${rootObj.fields[field].returnType}`;
     } else if (enumLeaf.includes(rootObj.fields[field].returnType)) {
       childLi.textContent = `${field}: ${rootObj.fields[field].returnType}`;
-      childLi.setAttribute("style", "color:#16cfc6");
+      // childLi.setAttribute('data-bs-toggle', "tooltip");
+      // childLi.setAttribute('data-bs-placement', "right");
+      // childLi.setAttribute('data-bs-trigger', 'hover');
+      // childLi.setAttribute('data-bs-title', `${rootObj.fields[field].returnType} enumeration type`);
+      // const tooltip = new bootstrap.Tooltip(childLi);
+      childLi.setAttribute("style", "color:rgb(170, 170, 170");
     } else {
       //create buttons within li
       const btn = document.createElement("a");
       btn.setAttribute('href', "#");
+      btn.setAttribute('class', "notleaf");
+      btn.setAttribute('data-bs-toggle', "tooltip");
+      btn.setAttribute('data-bs-placement', "right");
+      btn.setAttribute('data-bs-trigger', 'hover');
+      btn.setAttribute('data-bs-title', `return ${rootObj.fields[field].returnType} object type`);
+      const tooltip = new bootstrap.Tooltip(btn);
       btn.textContent = `${field}: ${rootObj.fields[field].returnType}`;
       //append to list item
       childLi.appendChild(btn);
@@ -245,6 +255,4 @@ function drawNext(array, node, rootObj, enumLeaf) {
   node.parentNode.appendChild(fieldDisplay);
   return;
 };
-
-
 

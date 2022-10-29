@@ -83,14 +83,20 @@ export async function activate(context: vscode.ExtensionContext) {
 					path.join(context.extensionPath, "stylesheet", "preview.css")
 				);
 
+				const logoPath = vscode.Uri.file(
+					path.join(context.extensionPath, "media", "icon.svg")
+				);
+
 				//add the previewjs to panel as a accessible Uri
 				const scriptSrc = panel.webview.asWebviewUri(onDiskPath);
 				const styleSrc = panel.webview.asWebviewUri(styleSheetPath);
+				const logoScr = panel.webview.asWebviewUri(logoPath);
 
 				//Add html content//
 				panel.webview.html = getWebViewContent(
 					scriptSrc.toString(),
-					styleSrc.toString()
+					styleSrc.toString(),
+					logoScr.toString()
       			);
 
 				//add event listener to webview
@@ -195,7 +201,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 
 //Initial preview html content
-const getWebViewContent = (scriptSrc: String, styleSrc: String) => {
+const getWebViewContent = (scriptSrc: String, styleSrc: String, logoSrc: String) => {
   return `<!DOCTYPE html>
 				<html lang="en">
 					<head>
@@ -212,7 +218,14 @@ const getWebViewContent = (scriptSrc: String, styleSrc: String) => {
 						</style>
 					</head>
 					<body>
-						<div id='navi_container'>
+						<script>
+							var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+							var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+								return new bootstrap.Tooltip(tooltipTriggerEl);
+							});
+						</script>
+						<div class='d-flex justify-content-around align-items-center'>
+							<img src="${logoSrc}" alt="#" width="40" height="40">
 							<h2>Schema Hierarchy</h2>
 							<button type="button" id='refresh' class="btn btn-secondary">Refresh</button>
 						</div>

@@ -1,20 +1,12 @@
 
-#navi_container {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: flex-end;
-  padding-left: 5em;
-  padding-right: 5em;
-}
-
-#board {
-  border: 1px, solid, #fff;
-}
-
 .queryType-alt {
     border-radius: 10;
   }
+
+.queryType-alt span:hover {
+  cursor: pointer;
+  font-weight: bold;
+}
 
   li.fieldType-alt {
     position:relative;
@@ -45,3 +37,10 @@ ul {
 li {
   padding-bottom: 5px;
 }
+
+.notleaf:hover {
+  font-weight: bold;
+  cursor: context-menu;
+}
+
+
