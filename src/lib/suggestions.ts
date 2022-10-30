@@ -14,9 +14,9 @@ export function offerSuggestions(branch: SchemaType): CompletionItem[] {
         let tempCompItem = new CompletionItem(`${key}: Option returned type here`, CompletionItemKind.Keyword); // What is displayed
         if (branch[key].arguments) {
             const insertText = buildArgSnippet(key, branch[key].arguments);
-            tempCompItem.insertText = new SnippetString('\n' + indentation + insertText + '${0}\n');
+            tempCompItem.insertText = new SnippetString(insertText + '${0}');
         } else {
-            tempCompItem.insertText = new SnippetString('\n' + indentation + key + '${0}\n'); // What is added
+            tempCompItem.insertText = new SnippetString(key + '${0}'); // What is added
         }
         // tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
         //TRY to do popup
@@ -252,9 +252,9 @@ export function traverseSchema(schema: Schema, type: SchemaType, history: string
  * @param document The document nested inside a vscode event.
  * @return Words/symbols from the start of the query to the cursor.
  */
- export function parseQuery(cursorY: number, cursorX: number, document: TextDocument ): string[] {
+ export function parseQuery(cursorY: number, cursorX: number, document: TextDocument): string[] {
     // Find the start of the query.
-    let messyHistory = findBackTick([], -1, 1000, document, cursorY, cursorX).reverse();
+    let messyHistory: string[] = findBackTick([], -1, 1000, document, cursorY, cursorX).reverse();
     // Indicate the cursor (mouse) location.
     messyHistory.push('🐭');
     // Find the end of the query.

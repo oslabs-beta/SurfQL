@@ -19,7 +19,7 @@ let enumArr: Array<any> = [];
 let enumObj: any = {};
 
 let history: string[] = [];
-const triggerCharacters: string[] = ['{'];
+let suggestions: vscode.Disposable[] = [];
 
 // This function will only be executed when the extension is activated.
 export async function activate(context: vscode.ExtensionContext) {
@@ -120,18 +120,18 @@ export async function activate(context: vscode.ExtensionContext) {
 ///////////////////////
 	// Each provider is a set of rules, for what needs to be typed, to create suggestions
 	// Providers are similar to event listeners
-	const suggestionProvider: vscode.Disposable = vscode.languages.registerCompletionItemProvider(
-		'javascript',
-		{
-			provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {		
-				const options = suggestOptions(schema, queryEntry, history);
-				return offerSuggestions(options) as vscode.CompletionItem[];
-			}
-		},
-		...triggerCharacters // => ['{']
-	);
+	// const suggestionProvider: vscode.Disposable = vscode.languages.registerCompletionItemProvider(
+	// 	'javascript',
+	// 	{
+	// 		provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {		
+	// 			const options = suggestOptions(schema, queryEntry, history);
+	// 			return offerSuggestions(options) as vscode.CompletionItem[];
+	// 		}
+	// 	},
+	// 	...triggerCharacters // => ['{']
+	// );
 
-	context.subscriptions.push(suggestionProvider);
+	// context.subscriptions.push(suggestionProvider);
 
 	const hoverProvider: vscode.Disposable = vscode.languages.registerHoverProvider(
 		'javascript', 
@@ -160,11 +160,15 @@ export async function activate(context: vscode.ExtensionContext) {
 
 		const cursorY: number = e.contentChanges[0].range.start.line; // Line number
 		const cursorX: number = e.contentChanges[0].range.start.character; // Column
+		// Trying to test what data can inform us in how to format the auto complete
+		// - Add a new line (before and after) (and indent) or not?
 		console.log('\n\nrow', cursorY, 'column', cursorX);
+		console.log('Current line:', e.document.lineAt(cursorY).text);
+		console.log('Changes:', e.contentChanges.map(x => x.text));
+		console.log('Change had new line:', e.contentChanges[0].text.includes('\n'));
 
 		// Create a query detector function here
-
-		const messyHistory: string[] = parseQuery(cursorY, cursorX, e.document); // Parse the document into an array
+		const messyHistory = parseQuery(cursorY, cursorX, e.document); // Parse the document into an array
 		const formattedHistory: string[] = fixBadFormatting(messyHistory); // Stimulate spacing around brackets/parentheses
 
 		// New - Delete old suggestions
@@ -175,14 +179,29 @@ export async function activate(context: vscode.ExtensionContext) {
 		console.log('COMPLETE SCHEMA:', historyObject);
 		historyObject.typedSchema = isolateCursor(historyObject.typedSchema);
 		console.log('ISOLATED SCHEMA:', historyObject);
-		const suggestions = getSuggestions(historyObject, schema, queryEntry);
-		console.log('SUGGESTIONS:', suggestions);
+		const options = getSuggestions(historyObject, schema, queryEntry);
+		console.log('SUGGESTIONS:', options);
+		
+		// Create the CompletionItems
+		suggestions.forEach(disposable => disposable.dispose()); // Dispose of the old suggestions
+		suggestions = [];
+		suggestions.push(vscode.languages.registerCompletionItemProvider(
+			'javascript',
+			{
+				provideCompletionItems() {		
+					return offerSuggestions(options) as vscode.CompletionItem[];
+				}
+			},
+			'\n'
+		));
+		// Subscribe them to be suggestions
+		context.subscriptions.push(...suggestions);
 
 		// Old
-		const cleanHistory: string[] = ignoreParentheses(formattedHistory); // Ignore the parentheses and their contents
-		const cleanerHistory: string[] = filterNestedPaths(cleanHistory); // Ignore nested objects that invalidate the path
-		const validHistory: string[] = filterFlatPaths(cleanerHistory); // Ignore properties that aren't part of the history
-		history = updateHistory(validHistory);
+		// const cleanHistory: string[] = ignoreParentheses(formattedHistory); // Ignore the parentheses and their contents
+		// const cleanerHistory: string[] = filterNestedPaths(cleanHistory); // Ignore nested objects that invalidate the path
+		// const validHistory: string[] = filterFlatPaths(cleanerHistory); // Ignore properties that aren't part of the history
+		// history = updateHistory(validHistory);
 
 		// New logic for object-based history:
 		function historyToObject(formattedHistory) {
@@ -445,7 +464,7 @@ export async function activate(context: vscode.ExtensionContext) {
 					};
 				}
 			}
-			console.log('filterOutUsedFields:', {options});
+			console.log('filterOutUsedFields:', options);
 			return options;
 		}
 
