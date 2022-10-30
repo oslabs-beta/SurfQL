@@ -54,96 +54,8 @@ const buildArgSnippet = (key: string, argArr: Array<any>) => {
     return text;
 };
 
-// Other Idea:
-// -------------
-// Instead of having history as an array, why not just build it into an object?
-// - Every time a '{' is seen, just nest eveything until the following '}' as a
-//   property
-// - Include a property 'cursor' with a reference to the current object the
-//   cursor is within.
-// Example:
-/*
-    history = {
-        cursor: <Object>,
-        operator: 'query',
-        typedSchema: {
-            // This first arguments property is tied to "Banana"/the describor
-            arguments: undefined,
-            pokemon: {
-                arguments: {
-                    id: 151
-                },
-                fields: {
-                    id: null,
-                    name: null,
-                    friends: {
-                        arguments: {
-                            type: 'WEAK'
-                        },
-                        fields: {
-                            id: null
-                            name: null
-                        }
-                    }
-                }
-            }
-
-        }
-    };
-*/
-
-// New plan:
-// -----------
-// Check for Query or Mutation
-// -- If mutation run mutationValidator() before continuing
-// -- -- Mutation validator function will validate there is (in order):
-// -- -- -- 'mutation'
-// -- -- -- descriptive name
-// -- -- -- -- with attached paranthesis with a valid input
-// -- -- -- '{'
-// -- -- -- entry point
-// -- -- -- '{'
-// -- -- Continue with the return type of the mutation
-// -- If not mutation then assume query
-// -- -- Remove first 'query' from history (if there is one at position 0)
-// -- -- Run queryValidator()
-// -- -- -- If there are inner parenthesis then validate them
-// -- -- Continue with the return type of the query
-// -- -- -- Run a parse entry query function
-
-export function suggestOptions2(schema: Schema, queryEntry: QueryEntry, history: string[]): SchemaType | void { // <- TODO: Remove void
-    // New plan:
-    // -----------
-    // Check for Query or Mutation
-    // -- If mutation run mutationValidator() before continuing
-    /*
-    if (history[0] === 'mutation') {
-        try {
-            mutationValidator();
-        } catch {
-            return null;
-        }
-    } else {
-        
-    }
-    */
-    // -- -- Mutation validator function will validate there is (in order):
-    // -- -- -- 'mutation'
-    // -- -- -- descriptive name
-    // -- -- -- -- with attached paranthesis with a valid input
-    // -- -- -- '{'
-    // -- -- -- entry point
-    // -- -- -- '{'
-    // -- -- Continue with the return type of the mutation
-    // -- If not mutation then assume query
-    // -- -- Remove first 'query' from history (if there is one at position 0)
-    // -- -- Run queryValidator()
-    // -- -- -- If there are inner parenthesis then validate them
-    // -- -- Continue with the return type of the query
-    // Pass the return type into the traverseSchema function
-}
-
 /**
+ * TODO: Delete function
  * Parses through the schema file based on the history to determine possible suggestions.
  * @param schema The global schema variable parsed from the schema file containing all the types.
  * @param queryEntry The global queryEntry variable parsed from the schema file containing all the entry points for each operation (query, mutation, subscribe)
@@ -199,6 +111,7 @@ function matchKeyToCorrectCase(obj: any, key: string): string | void {
 }
 
 /**
+ * TODO: Delete function
  * Traverses a schema (recursively) to return the branches at a given level
  * @param schema The parsed schema file.
  * @param history An array representing the traversal path for the obj.
@@ -227,23 +140,6 @@ export function traverseSchema(schema: Schema, type: SchemaType, history: string
     return traverseSchema(schema, nextType, history.slice(1)) as SchemaType;
 };
 
-//TODO
-// [ ] Auto complete anywhere (no trigger characters needed)
-// [X] Config file
-// [X] Enable support for 'mutation' or 'query'
-
-// /**
-//  * At any point in the query, this function will suggest/complete what the user typed based on the existing schema.
-//  * @param schema
-//  * @param history
-//  * @return 
-//  */
-// export function autoCompleteAnywhere(schema : any, history: string[]) : CompletionItem[] {
-//     //may require separate trigger character functionality
-//     const currentSchemaBranch = traverseSchema(schema, history);
-// 	return offerSuggestions(currentSchemaBranch) as CompletionItem[];
-// }
-
 /**
  * Parses the document returning an array of words/symbols.
  * However it will exit early if it cannot find the start/end of a query near the cursor.
@@ -252,7 +148,7 @@ export function traverseSchema(schema: Schema, type: SchemaType, history: string
  * @param document The document nested inside a vscode event.
  * @return Words/symbols from the start of the query to the cursor.
  */
- export function parseQuery(cursorY: number, cursorX: number, document: TextDocument): string[] {
+ export function parseDocumentQuery(cursorY: number, cursorX: number, document: TextDocument): string[] {
     // Find the start of the query.
     let messyHistory: string[] = findBackTick([], -1, 1000, document, cursorY, cursorX).reverse();
     // Indicate the cursor (mouse) location.
@@ -261,8 +157,7 @@ export function traverseSchema(schema: Schema, type: SchemaType, history: string
     messyHistory = findBackTick(messyHistory, 1, 1000, document, cursorY, cursorX);
     // Filter out the empty strings from the query array.
     messyHistory = messyHistory.filter((str) => str); 
-    
-    console.log('Messy History:', messyHistory.join(' -> ') || 'empty...');
+    // Return
     return messyHistory;
 }
 
@@ -331,7 +226,7 @@ function findBackTick(history: string[], direction: 1 | -1, limit: number, docum
  * @param messyHistory 
  * @return An array of words with the brackets and parentheses detached.
  */
-export function fixBadFormatting(messyHistory: string[]): string[] {
+export function fixBadHistoryFormatting(messyHistory: string[]): string[] {
     return messyHistory.reduce((relevant: string[], word: string) => {
         let reformedWord = ''; // Will hold the words as they are re-formed
         for (const char of word) {
@@ -353,6 +248,7 @@ export function fixBadFormatting(messyHistory: string[]): string[] {
 }
 
 /**
+ * TODO: Delete function
  * Parenthesis don't affect the history. Remove them from the array so they don't interfere with the path.
  * @param formattedHistory An unfiltered array that potentially contains parentheses.
  * @return An array without parentheses and inner contents of parentheses.
@@ -383,6 +279,7 @@ export function ignoreParentheses(formattedHistory: string[]): string[] {
 }
 
 /**
+ * TODO: Delete function
  * Filter out nested side paths from the history array.
  * @param cleanHistory An array with a valid history path that needs to be isolated.
  * @return An array without nested side paths.
@@ -412,6 +309,7 @@ export function filterNestedPaths(cleanHistory: string[]): string[] {
 }
 
 /**
+ * TODO: Delete function
  * Filter out properties that don't connect the cursor to the start of the query.
  * @param cleanerHistory An array with a valid history path that needs to be isolated.
  * @return An array without side properties.
@@ -430,6 +328,7 @@ export function filterFlatPaths(cleanerHistory: string[]): string[] {
 }
 
 /**
+ * TODO: Delete function
  * Cleans up an array to be used as the new history.
  * @param validHistory An array representing the words within a query that connect the start of a query to the cursor.
  * @return Nothing... but history is re-declared.

@@ -1,3 +1,4 @@
+/* eslint-disable curly */
 /*---------------------------------------------------------
  * Copyright (C) Microsoft Corporation. All rights reserved.
  *--------------------------------------------------------*/
@@ -7,9 +8,8 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import parser from "./parser";
-import { offerSuggestions, suggestOptions, parseQuery,
-	fixBadFormatting, ignoreParentheses, filterNestedPaths,
-	filterFlatPaths, updateHistory, traverseSchema } from "./lib/suggestions";
+import { offerSuggestions, parseDocumentQuery,
+	fixBadHistoryFormatting } from "./lib/suggestions";
 import { Schema, QueryEntry } from './lib/models';
 
 let schema: Schema;
@@ -18,8 +18,7 @@ let schemaPaths: string[] = [];
 let enumArr: Array<any> = [];
 let enumObj: any = {};
 
-let history: string[] = [];
-let suggestions: vscode.Disposable[] = [];
+let disposable: vscode.Disposable;
 
 // This function will only be executed when the extension is activated.
 export async function activate(context: vscode.ExtensionContext) {
@@ -29,15 +28,6 @@ export async function activate(context: vscode.ExtensionContext) {
 	console.log('schema', schema);
 	console.log('queryEntry', queryEntry);
 	enumObj = enumToObj(enumArr);
-
-
-  // The command has been defined in the package.json file
-  // Now provide the implementation of the command with registerCommand
-  // The commandId parameter must match the command field in package.json
-  let disposable = vscode.commands.registerCommand("surfql.helloWorld", () => {
-    // Display a message box to the user
-    vscode.window.showInformationMessage("Hello World from SurfQL!");
-  });
 
   // Creates a popup with a schema tree visualizer.
   const previewSchema = vscode.commands.registerCommand(
@@ -121,24 +111,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(previewSchema);
 
-////////////////////////
-//Suggestion Provider//
-///////////////////////
-	// Each provider is a set of rules, for what needs to be typed, to create suggestions
-	// Providers are similar to event listeners
-	// const suggestionProvider: vscode.Disposable = vscode.languages.registerCompletionItemProvider(
-	// 	'javascript',
-	// 	{
-	// 		provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {		
-	// 			const options = suggestOptions(schema, queryEntry, history);
-	// 			return offerSuggestions(options) as vscode.CompletionItem[];
-	// 		}
-	// 	},
-	// 	...triggerCharacters // => ['{']
-	// );
-
-	// context.subscriptions.push(suggestionProvider);
-
 	const hoverProvider: vscode.Disposable = vscode.languages.registerHoverProvider(
 		'javascript', 
 		{
@@ -156,7 +128,7 @@ export async function activate(context: vscode.ExtensionContext) {
     );
 	context.subscriptions.push(hoverProvider);
 
-	
+	// EVENT: On every document change: ...
 	vscode.workspace.onDidChangeTextDocument((e) => {
 		// Exit early when no schema has been loaded.
 		if (!schema) {
@@ -173,97 +145,107 @@ export async function activate(context: vscode.ExtensionContext) {
 		console.log('Changes:', e.contentChanges.map(x => x.text));
 		console.log('Change had new line:', e.contentChanges[0].text.includes('\n'));
 
-		// Create a query detector function here
-		const messyHistory = parseQuery(cursorY, cursorX, e.document); // Parse the document into an array
-		const formattedHistory: string[] = fixBadFormatting(messyHistory); // Stimulate spacing around brackets/parentheses
-
-		// New - Delete old suggestions
-		
-
-		// New - Create suggestions
-		const historyObject = historyToObject(formattedHistory);
+		// Parse the document's current query into an array.
+		const messyHistoryArray = parseDocumentQuery(cursorY, cursorX, e.document);
+		console.log('Original history array:', messyHistoryArray);
+		// Stimulate spacing around brackets/parentheses for easier parsing.
+		const formattedHistoryArray: string[] = fixBadHistoryFormatting(messyHistoryArray);
+		console.log('Formatted history array:', formattedHistoryArray);
+		// Parse history array into an object.
+		const historyObject = historyToObject(formattedHistoryArray);
 		console.log('COMPLETE SCHEMA:', historyObject);
+		// Clean up the history object.
 		historyObject.typedSchema = isolateCursor(historyObject.typedSchema);
 		console.log('ISOLATED SCHEMA:', historyObject);
-		const options = getSuggestions(historyObject, schema, queryEntry);
-		console.log('SUGGESTIONS:', options);
+		// Create suggestions based off of the history and schema.
+		const suggestions = getSuggestions(historyObject, schema, queryEntry);
+		console.log('SUGGESTIONS:', suggestions);
 		
-		// Create the CompletionItems
-		suggestions.forEach(disposable => disposable.dispose()); // Dispose of the old suggestions
-		suggestions = [];
-		suggestions.push(vscode.languages.registerCompletionItemProvider(
+		// Dispose of the old suggestion.
+		if (disposable) disposable.dispose();
+		// Create the CompletionItems.
+		disposable = vscode.languages.registerCompletionItemProvider(
 			'javascript',
 			{
 				provideCompletionItems() {		
-					return offerSuggestions(options) as vscode.CompletionItem[];
+					return offerSuggestions(suggestions) as vscode.CompletionItem[];
 				}
 			},
 			'\n'
-		));
-		// Subscribe them to be suggestions
-		context.subscriptions.push(...suggestions);
+		);
+		// Subscribe them to be popped up as suggestions.
+		context.subscriptions.push(disposable);
 
-		// Old
-		// const cleanHistory: string[] = ignoreParentheses(formattedHistory); // Ignore the parentheses and their contents
-		// const cleanerHistory: string[] = filterNestedPaths(cleanHistory); // Ignore nested objects that invalidate the path
-		// const validHistory: string[] = filterFlatPaths(cleanerHistory); // Ignore properties that aren't part of the history
-		// history = updateHistory(validHistory);
+		// TODO:
+		// - Add cursor detection within args to auto suggest args instead of fields
 
-		// New logic for object-based history:
-		function historyToObject(formattedHistory) {
-			console.log({formattedHistory});
-			const obj: any = { typedSchema: {} };
-			let newHistory = [...formattedHistory];
+		/**
+		 * Converts a history array to a history object.
+		 * @param historyArray Any array of strings representing a valid query
+		 * @returns A nested object that resembles the document's query
+		 */
+		function historyToObject(historyArray: string[]) {
+			const historyObj: any = { typedSchema: {} };
+			let newHistory = [...historyArray];
 			
-			// Determine the operator
-			if (formattedHistory[0].toLowerCase() === 'query' || formattedHistory[0] === '{') {
-				obj.operator = 'query';
-			} else if (formattedHistory[0].toLowerCase() === 'mutation') {
-				obj.operator = 'mutation';
+			// Determine the operator.
+			if (newHistory[0].toLowerCase() === 'query' || newHistory[0] === '{') {
+				historyObj.operator = 'query';
+			} else if (newHistory[0].toLowerCase() === 'mutation') {
+				historyObj.operator = 'mutation';
 			} else {
-				console.log('Throwing error');
+				console.log('Throwing error: Invalid query format');
 				throw new Error('Invalid query format');
 			}
 
-			// Determine if there are outter arguments (always the case for valid mutations)
-			if ((obj.operator === 'mutation') || (formattedHistory[0].toLowerCase() === 'query' && formattedHistory[2] === '(')) {
-				const {inners, outters} = collapse(formattedHistory, '(', ')');
+			// Determine if there are outter arguments (always the case for valid mutations).
+			if ((historyObj.operator === 'mutation') || (newHistory[0].toLowerCase() === 'query' && newHistory[2] === '(')) {
+				const {inners, outters} = collapse(newHistory, '(', ')');
 				newHistory = outters;
-				obj.typedSchema._args = parseArgs(inners);
-				// TODO REMOVE LOG: console.log('Final args:', obj.typedSchema._args);
+				historyObj.typedSchema._args = parseArgs(inners);
 			}
 
-			console.log({newHistory});
-			traverseHistory(collapse(newHistory, '{', '}').inners, obj.typedSchema, obj);
-			return obj;
+			// Recursively nest into the typed schema to build out the historyObj.
+			traverseHistory(collapse(newHistory, '{', '}').inners, historyObj.typedSchema, historyObj);
+
+			// Return the history object that was constructed from the history array.
+			return historyObj;
 		}
 
-		// Collapse ( -> ) or { -> }
-		function collapse(arr, openingChar, closingChar) {
-			const outters = [];
-			const inners = [];
-			let initialized = false;
-			let finished = false;
-			let state = 0; // 0 when outside, >= 1 when inside
-			let skipped = 0;
+		/**
+		 * Takes in an array, removing everything between the first set of opening
+		 * and closing characters. The enclosed area (inners) and surrounding area
+		 * (outters) are returned as well as the modification count (skipped).
+		 * @param arr Any array of strings (history array)
+		 * @param openingChar Any character: '{', '(', etc...
+		 * @param closingChar Any character: '}', ')', etc...
+		 * @returns {inners, outters, skipped}
+		 */
+		function collapse(arr: string[], openingChar: string, closingChar: string) {
+			const outters: string[] = []; // The contents outside the opening/closing chars
+			const inners: string[] = []; // The contents within the opening/closing chars
+			let state: number = 0; // 0 when outside (outters); >= 1 when inside (inners)
+			let skipped: number = 0; // Tracks how many words were added to inners
+			let initialized: boolean = false; // Helps determine when the encapsulation is finished
+			let finished: boolean = false; // When finished the rest of the words are added to outters
 			for (const word of arr) {
 				if (finished) {
-					outters.push(word);
+					// Checking to see if the encapsulation (collapse) has finished.
+					outters.push(word); // When collapse is finished add the rest to outters
 				} else if (word === openingChar) {
-					// Initialize search / Increment state
-					initialized = true;
-					if (state) inners.push(word);
-					state++;
-					skipped++;
+					// Checking to see if the current word matches the opening char.
+					initialized = true; // Initialize search (may repeat which is okay)
+					if (state) inners.push(word); // If this is nested within the encapsulation then include it in the inners
+					state++; // Increment the state: We are nested 1 level deeper now
+					skipped++; // Increment the skipped count
 				} else if (word === closingChar) {
-					// Decrement state
-					state--;
-					if (state) inners.push(word);
-					skipped++;
-					// Check for completion
-					if (initialized && state <= 0) finished = true;
+					// Checking to see if the current word matches the closing char.
+					state--; // Decrement the state: We are 1 level less nested now
+					if (state) inners.push(word); // If this is nested within the encapsulation then include it in the inners
+					skipped++; // Increment the skipped count
+					if (initialized && state <= 0) finished = true; // Check for completion
 				} else {
-					// Add to respective array
+					// Otherwise add the current word to its respective array.
 					if (state) {
 						inners.push(word);
 						skipped++;
@@ -275,101 +257,94 @@ export async function activate(context: vscode.ExtensionContext) {
 			return { outters, inners, skipped };
 		}
 
+		/**
+		 * Parses an array of strings into an object with argument data.
+		 * @param inners Inners captured from the collapse() method integrate well
+		 * @returns An object resembling key/value pairs of Apollo GraphQL arguments
+		 */
 		function parseArgs(inners: string[]) {
 			// TODO: Convert any type from a string to its intended type for type testing
 			// - Example: "3" -> 3 (number)
 			// - Example: "[1," "2," "3]" -> [1, 2, 3] (array/nested)
 			// - Example: "{" "int:" "3" "}" -> {int: 3} (object/nested)
 			// - etc...
-			// TODO REMOVE LOG: console.log('Parsing args');
-			const obj: any = {};
+			const args: any = {};
+			// Iterate through the argument inners.
 			for (let i = 0; i < inners.length; i++) {
-				// Starting off
-				const current = inners[i];
-				const next = inners[i + 1];
-				// TODO REMOVE LOG: console.log({current, next});
-				// We're dealing with an object
+				// Declare the current and next values for convenience.
+				const current: string = inners[i];
+				const next: string = inners[i + 1];
+				// The current key/value involves an object.
 				if (next === '{') {
-					// Leverage 'skipped' from collapse()
+					// Leverage 'skipped' from collapse() to ignore the object details.
 					const { skipped } = collapse(inners.slice(i), '{', '}');
 					i += skipped;
-					obj[current.slice(0, -1)] = {};
+					args[current.slice(0, -1)] = {}; // Assign an empty object as a indicator
 				}
-				// We're not dealing with an object
+				// The current key/value does not involve an object.
 				else {
 					// Slice off the ':' and add the key/value pair to obj
-					obj[current.slice(0, -1)] = next;
-					i++;
+					args[current.slice(0, -1)] = next.replace(/,$/, ''); // Also ignore trailing commas
+					i++; // Increment i an extra time here to move to the next 2 key/values.
 				}
 			}
-			console.log('Done parsing args');
-			return obj;
+			return args;
 		}
+		
+		/**
+		 * Traverses a history array to recursively build out the object array.
+		 * @param historyRef The current section of history that needs to be parsed
+		 * @param obj The portion of the history object that is being built
+		 * @param entireHistoryObj The entire history object used to reference root-level properties
+		 */
+		function traverseHistory(historyRef: string[], obj: any, entireHistoryObj: any): void {		
+			// Do not mutate the original history to keep this function pure.
+			let history: string[] = [...historyRef];
 
-		function traverseHistory(historyRef, obj, schema) {
-			// There may be:
-				// a nested field
-					// There may be:
-						// params
-					// There will be:
-						// '{'
-						// Recurse
-				// a non-nested field
-				
-			// Do not mutate the original history
-			// TODO: Maybe it's fine to mutate it directly? Test this.
-			let history = [...historyRef];
-			// TODO REMOVE LOG: console.log('Traversing history', history);
 			// Check to see what follows the field to see what type it is (nested?)
 			for (let i = 0; i < history.length; i++) {
 				let current = history[i];
 				let next = history[i + 1];
-				let newObj: string | any = { _field: current };
+				let newObj: string | any = {};
 
-				// Handle cursor
+				// The current word is just a message that this cursor is at this level.
 				if (current === '🐭') {
-					schema.cursor = obj;
-					obj._cursor = true;
-					continue;
+					entireHistoryObj.cursor = obj; // TODO: Remove this? Quick access to the cursor object has never been leveraged.
+					obj._cursor = true; // ⭐️ Signify that the cursor was found at this level
+					continue; // Increment i and iterate the loop
 				}
 
 				obj[current] = newObj;  // Default to expect a nested field
-				// TODO REMOVE LOG: console.log({current, next});
-				// A scalar will be handled automatically by the for-loop incrementor.
-				// Check for a nested field.
+
+				// Check for arguments:
 				if (next === '(') {
-					// TODO REMOVE LOG: console.log('Found arguments');
 					const { inners, skipped } = collapse(history.slice(i), '(', ')');
-					const args = parseArgs(inners);
-					newObj._args = args;
-					i += skipped;
-					current = history[i];
-					next = history[i + 1];
-					// TODO REMOVE LOG: console.log('New current:', current);
-					// TODO REMOVE LOG: console.log('New next:', next);
+					const args = parseArgs(inners); // Parse the arguments
+					newObj._args = args; // Assign the arguments to the new object
+					i += skipped; // Skip the rest of the argument inners
+					current = history[i]; // Reassign 'current' for the following if block
+					next = history[i + 1]; // Reassign 'next' for the following if block
 				}
+				// Check for a bracket signifying a nested field:
 				if (next === '{') {
-					// TODO REMOVE LOG: console.log('Handling nested field');
-					// Try removing the i++ if this doesn't work.
-					// I was trying to stimulate the loop increment but maybe its bad...
-					// i++;
 					const { inners, skipped } = collapse(history.slice(i), '{', '}');
+					// Skip what was found within the nested field and continue to process
+					// other fields at this level.
 					i += skipped;
-					traverseHistory(inners, newObj, schema);
+					// Recurse to process the nested field that was skipped.
+					traverseHistory(inners, newObj, entireHistoryObj);
 				}
-				// Add the scalar's property
+				// If the field was not nested: Add the scalar's property.
 				else {
 					obj[current] = 'Scalar';
 				}
 			}
-			// TODO REMOVE LOG: console.log('Done traversing history');
 		}
 
 		function isolateCursor(history) {
 			// Make sure to pass in the obj.typedSchema
 			// Break case: the cursor is found
 			if (history._cursor) {
-				// TODO REMOVE LOG: console.log('End point:', history);
 				// Flattens other side paths
 				return Object.entries(history).reduce((obj, [key, value]) => {
 					if (typeof value === 'object') obj[key] = 'Field';
@@ -380,9 +355,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			}
 			// Recurse case: Nest until the cursor is found
 			for (const field in history) {
-				// TODO REMOVE LOG: console.log('FIELD', field);
 				if (typeof history[field] === 'object') {
-					// TODO REMOVE LOG: console.log('Nesting into', field);
 					const traverse = isolateCursor(history[field]);
 					if (traverse) return { [field]: traverse }; // TODO: Remove parens?
 				}
