@@ -167,7 +167,10 @@ export async function activate(context: vscode.ExtensionContext) {
 		const messyHistory: string[] = parseQuery(cursorY, cursorX, e.document); // Parse the document into an array
 		const formattedHistory: string[] = fixBadFormatting(messyHistory); // Stimulate spacing around brackets/parentheses
 
-		// New
+		// New - Delete old suggestions
+		
+
+		// New - Create suggestions
 		const historyObject = historyToObject(formattedHistory);
 		console.log('COMPLETE SCHEMA:', historyObject);
 		historyObject.typedSchema = isolateCursor(historyObject.typedSchema);
