@@ -83,14 +83,20 @@ export async function activate(context: vscode.ExtensionContext) {
 					path.join(context.extensionPath, "stylesheet", "preview.css")
 				);
 
+				const logoPath = vscode.Uri.file(
+					path.join(context.extensionPath, "media", "icon.svg")
+				);
+
 				//add the previewjs to panel as a accessible Uri
 				const scriptSrc = panel.webview.asWebviewUri(onDiskPath);
 				const styleSrc = panel.webview.asWebviewUri(styleSheetPath);
+				const logoScr = panel.webview.asWebviewUri(logoPath);
 
 				//Add html content//
 				panel.webview.html = getWebViewContent(
 					scriptSrc.toString(),
-					styleSrc.toString()
+					styleSrc.toString(),
+					logoScr.toString()
       			);
 
 				//add event listener to webview
@@ -490,31 +496,35 @@ export async function activate(context: vscode.ExtensionContext) {
 
 
 //Initial preview html content
-const getWebViewContent = (scriptSrc: String, styleSrc: String) => {
+const getWebViewContent = (scriptSrc: String, styleSrc: String, logoSrc: String) => {
   return `<!DOCTYPE html>
 				<html lang="en">
 					<head>
 						<meta charset="UTF-8">
 						<meta name="viewport" content="width=device-width, initial-scale=1.0">
 						<title>PreviewSchema</title>
+						
+						<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Zenh87qX5JnK2Jl0vWa8Ck2rdkQ2Bzep5IDxbcnCeuOxjzrPF/et3URy9Bv1WTRi" crossorigin="anonymous">
+						<link rel="stylesheet" href="${styleSrc}">
+						<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-OERcA2EqjJCMA+/3y+gxIOqMEjwtxJY7qPCqsdltbNJuaOe923+mo//f6V8Qbsw3" crossorigin="anonymous"></script>
 						<script type="text/javascript" src="${scriptSrc}"></script>
-						<link rel="stylesheet" href="${styleSrc}" />
+						<style>
+							body {background-color: rgb(40, 40, 40); color: rgb(240, 240, 240)}
+						</style>
 					</head>
 					<body>
-						<h1>Schema Hierarchy</h1>
-						<button id='refresh' type='button'>Refresh</button>
-						<div id='board'></div>
 						<script>
-							document.addEventListener('DOMcontentLoaded', () => {
-								const vscode = acquireVsCodeApi();
-								function getSchematext() {
-									vscode.postMessage({
-										command: 'get schema text'
-									})
-								}
-								getSchematext();
-							})
+							var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+							var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+								return new bootstrap.Tooltip(tooltipTriggerEl);
+							});
 						</script>
+						<div class='d-flex justify-content-around align-items-center'>
+							<img src="${logoSrc}" alt="#" width="40" height="40">
+							<h2>Schema Hierarchy</h2>
+							<button type="button" id='refresh' class="btn btn-secondary" style='color: #5fefd0'>Refresh</button>
+						</div>
+						<div id='board'></div>
 					</body>
 				</html>`;
 };
