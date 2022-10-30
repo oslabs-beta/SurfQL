@@ -1,3 +1,4 @@
+/* eslint-disable curly */
 import { CompletionItem, CompletionItemKind, SnippetString, TextDocument, MarkdownString } from 'vscode';
 import { indentation } from '../constants';
 import { Schema, QueryEntry, SchemaType } from './models';
@@ -53,6 +54,95 @@ const buildArgSnippet = (key: string, argArr: Array<any>) => {
     return text;
 };
 
+// Other Idea:
+// -------------
+// Instead of having history as an array, why not just build it into an object?
+// - Every time a '{' is seen, just nest eveything until the following '}' as a
+//   property
+// - Include a property 'cursor' with a reference to the current object the
+//   cursor is within.
+// Example:
+/*
+    history = {
+        cursor: <Object>,
+        operator: 'query',
+        typedSchema: {
+            // This first arguments property is tied to "Banana"/the describor
+            arguments: undefined,
+            pokemon: {
+                arguments: {
+                    id: 151
+                },
+                fields: {
+                    id: null,
+                    name: null,
+                    friends: {
+                        arguments: {
+                            type: 'WEAK'
+                        },
+                        fields: {
+                            id: null
+                            name: null
+                        }
+                    }
+                }
+            }
+
+        }
+    };
+*/
+
+// New plan:
+// -----------
+// Check for Query or Mutation
+// -- If mutation run mutationValidator() before continuing
+// -- -- Mutation validator function will validate there is (in order):
+// -- -- -- 'mutation'
+// -- -- -- descriptive name
+// -- -- -- -- with attached paranthesis with a valid input
+// -- -- -- '{'
+// -- -- -- entry point
+// -- -- -- '{'
+// -- -- Continue with the return type of the mutation
+// -- If not mutation then assume query
+// -- -- Remove first 'query' from history (if there is one at position 0)
+// -- -- Run queryValidator()
+// -- -- -- If there are inner parenthesis then validate them
+// -- -- Continue with the return type of the query
+// -- -- -- Run a parse entry query function
+
+export function suggestOptions2(schema: Schema, queryEntry: QueryEntry, history: string[]): SchemaType | void { // <- TODO: Remove void
+    // New plan:
+    // -----------
+    // Check for Query or Mutation
+    // -- If mutation run mutationValidator() before continuing
+    /*
+    if (history[0] === 'mutation') {
+        try {
+            mutationValidator();
+        } catch {
+            return null;
+        }
+    } else {
+        
+    }
+    */
+    // -- -- Mutation validator function will validate there is (in order):
+    // -- -- -- 'mutation'
+    // -- -- -- descriptive name
+    // -- -- -- -- with attached paranthesis with a valid input
+    // -- -- -- '{'
+    // -- -- -- entry point
+    // -- -- -- '{'
+    // -- -- Continue with the return type of the mutation
+    // -- If not mutation then assume query
+    // -- -- Remove first 'query' from history (if there is one at position 0)
+    // -- -- Run queryValidator()
+    // -- -- -- If there are inner parenthesis then validate them
+    // -- -- Continue with the return type of the query
+    // Pass the return type into the traverseSchema function
+}
+
 /**
  * Parses through the schema file based on the history to determine possible suggestions.
  * @param schema The global schema variable parsed from the schema file containing all the types.
@@ -64,7 +154,7 @@ export function suggestOptions(schema: Schema, queryEntry: QueryEntry, history: 
     // TODO:
     // Refactor because there are only 2 operations and 1 other entry type (subscribe).
     
-    const firstWord: string = history[0].replace('`', ''); // Remove any attached backticks
+    const firstWord: string = history[0].replace(/(gql)?`/i, ''); // Remove any attached query string initializers
     // Parse the document handling a query initiated with a query operator.
     if (firstWord === 'query') {
         // Find the index to the currently used operation (Query, Mutation, Subscription)
@@ -156,52 +246,84 @@ export function traverseSchema(schema: Schema, type: SchemaType, history: string
 
 /**
  * Parses the document returning an array of words/symbols.
- * However it will exit early if it cannot find the start of a query near the cursor.
- * @param lineNumber Lists the VSCode line [index 0] the user is on.
- * @param cursorLocation A number representing the cursor location.
- * @param document The document nested inside a vscode event
- * @return Words/symbols from the start of the query to the cursor
+ * However it will exit early if it cannot find the start/end of a query near the cursor.
+ * @param cursorY The line number the cursor is currently located.
+ * @param cursorX The column number the cursor is currently located.
+ * @param document The document nested inside a vscode event.
+ * @return Words/symbols from the start of the query to the cursor.
  */
- export function parseQuery(lineNumber: number, cursorLocation:number, document: TextDocument ): string[] {
-    let messyHistory: string[] = [];
+ export function parseQuery(cursorY: number, cursorX: number, document: TextDocument ): string[] {
+    // Find the start of the query.
+    let messyHistory = findBackTick([], -1, 1000, document, cursorY, cursorX).reverse();
+    // Indicate the cursor (mouse) location.
+    messyHistory.push('🐭');
+    // Find the end of the query.
+    messyHistory = findBackTick(messyHistory, 1, 1000, document, cursorY, cursorX);
+    // Filter out the empty strings from the query array.
+    messyHistory = messyHistory.filter((str) => str); 
+    
+    console.log('Messy History:', messyHistory.join(' -> ') || 'empty...');
+    return messyHistory;
+}
+
+/**
+ * Appends all characters between the cursor and a backtick.
+ * @param history The current history that will be appended to.
+ * @param direction 1 or -1 depending on the direction (positive moves down the page).
+ * @param limit Limits amount of lines to process / characters on one line to process.
+ * @param document The file we will be reading from to find the query.
+ * @param cursorY The line number the cursor is currently located.
+ * @param cursorX The column number the cursor is currently located.
+ * @returns An array of words/characters.
+ */
+function findBackTick(history: string[], direction: 1 | -1, limit: number, document: TextDocument, lineNumber: number, cursorLocation: number): string[] {
+    const newHistory = [];
     let line: string = document.lineAt(lineNumber).text;
-    line = line.slice(0, cursorLocation + 1); // Ignore everything after the cursor
-    const limit = 1000; // Limits amount of lines to process / characters on one line to process
+    // The slice will depend on the 'direction' parameter.
+    // - Ignore everything before/after the cursor
+    line = (direction === -1) ? line.slice(0, cursorLocation + 1) : line.slice(cursorLocation + 1);
     
     // Create an array of words (and occasional characters such as: '{')
     // Iterate through the lines of the file (starting from the cursor moving up the file)
-    while (lineNumber >= 0 && messyHistory.length <= limit) {
+    while (lineNumber >= 0 && newHistory.length <= limit) {
         // When the start of the query was found: This is the last loop
         if (line.includes('`')) {
-            lineNumber = -1; // Set line number to -1 to end the loop
+            lineNumber = -2; // Set line number to -2 to end the loop (-1 doesn't work)
             // Slice at the backtick
-            const startOfQueryIndex = line.indexOf('`');
-            line = line.slice(startOfQueryIndex+1);
+            const backTickIndex = line.indexOf('`');
+            // The slice will depend on the 'direction' parameter.
+            // - Ignore everything before/after the back tick
+            line = (direction === -1) ? line.slice(backTickIndex + 1) : line.slice(0, backTickIndex);
         }
 
         // Detect if the file is compressed into a one-line file.
-        // Exit early if the line is 1000+ characters.
+        // Exit early if the line is 1000+ characters (the limit).
         if (line.length > limit) {
             console.log('Line has over', limit, 'characters. Limit reached for parsing.');
             return [];
         }
 
-        messyHistory.push(...line.split(/\s+/g).reverse()); // Split into an array of words (splitting at each white space)
-        lineNumber--;
+        // Divide the line (string) into an array of words.
+        const arrayOfWords = line.split(/\s+/g);
+        // Depending on the direction, reverse the array.
+        if (direction === -1) arrayOfWords.reverse();
+        // Append the array of words to the new history.
+        newHistory.push(...arrayOfWords);
+        // Increment in the correct direction
+        lineNumber += direction;
         if (lineNumber >= 0) {
             line = document.lineAt(lineNumber).text;
+            // If we hit the end of our file exit early
+            if (lineNumber === document.lineCount) {
+                console.log({lineNumber, total: document.lineCount});
+                console.log('Hit EOF without finding the backtick. Direction:', direction);
+                return [];
+            }
         }
     }
 
-    // Failed to limit
-    console.log('the length of the history array is now', messyHistory.length);
-    
-    // Clean up the parsed query array into a useable history array
-    messyHistory = messyHistory.filter((str) => str); // Filter out the empty strings from the query array
-    messyHistory.reverse(); // The nested order is opposite from how it is typed
-    
-    console.log('Messy History:', messyHistory.join(' -> ') || 'empty...');
-    return messyHistory;
+    // The appending location will depend on the 'direction' parameter.
+    return (direction === -1) ? [...newHistory, ...history] : [...history, ...newHistory];
 }
 
 /**
@@ -236,7 +358,9 @@ export function fixBadFormatting(messyHistory: string[]): string[] {
  * @return An array without parentheses and inner contents of parentheses.
  */
 export function ignoreParentheses(formattedHistory: string[]): string[] {
+    console.log('=========================================');
     console.log('Formatted History:', formattedHistory.join(' -> ') || 'empty...');
+    console.log('=========================================');
     const cleanHistory: string[] = []; // The return result of only relevant strings
     let ignoring: boolean = false; // The status of the filter/loop process
     for (const word of formattedHistory) {

@@ -5,5 +5,7 @@ export const primatives = [
   'ID'
 ];
 
-/* 🌊 Lingo 💃 */
-// Query Operations - "query" or "mutation" keywords at the start of a query. 
+/* 🌊 Terms 🧠 */
+// Query Operations - "query" or "mutation" keywords at the start of a query.
+// Query Field - The term for the property/key on the query. Ex: "name" or "id"
+// Query Scalar - The leaf (or end node) of a query. This is also a field.

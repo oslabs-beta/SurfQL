@@ -9,7 +9,7 @@ import * as fs from 'fs';
 import parser from "./parser";
 import { offerSuggestions, suggestOptions, parseQuery,
 	fixBadFormatting, ignoreParentheses, filterNestedPaths,
-	filterFlatPaths, updateHistory } from "./lib/suggestions";
+	filterFlatPaths, updateHistory, traverseSchema } from "./lib/suggestions";
 import { Schema, QueryEntry } from './lib/models';
 
 let schema: Schema;
@@ -158,20 +158,293 @@ export async function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		// name .... na...[na,] -> {
-		const lineNumber: number = e.contentChanges[0].range.start.line;
-		const characterNumber: number = e.contentChanges[0].range.start.character;
-		const line: string = e.document.lineAt(lineNumber).text;
-		console.log('\n\nrow', lineNumber, 'column', characterNumber);
+		const cursorY: number = e.contentChanges[0].range.start.line; // Line number
+		const cursorX: number = e.contentChanges[0].range.start.character; // Column
+		console.log('\n\nrow', cursorY, 'column', cursorX);
 
 		// Create a query detector function here
 
-		const messyHistory: string[] = parseQuery(lineNumber, characterNumber, e.document); // Parse the document into an array
+		const messyHistory: string[] = parseQuery(cursorY, cursorX, e.document); // Parse the document into an array
 		const formattedHistory: string[] = fixBadFormatting(messyHistory); // Stimulate spacing around brackets/parentheses
+
+		// New
+		const historyObject = historyToObject(formattedHistory);
+		console.log('COMPLETE SCHEMA:', historyObject);
+		historyObject.typedSchema = isolateCursor(historyObject.typedSchema);
+		console.log('ISOLATED SCHEMA:', historyObject);
+		const suggestions = getSuggestions(historyObject, schema, queryEntry);
+		console.log('SUGGESTIONS:', suggestions);
+
+		// Old
 		const cleanHistory: string[] = ignoreParentheses(formattedHistory); // Ignore the parentheses and their contents
 		const cleanerHistory: string[] = filterNestedPaths(cleanHistory); // Ignore nested objects that invalidate the path
 		const validHistory: string[] = filterFlatPaths(cleanerHistory); // Ignore properties that aren't part of the history
 		history = updateHistory(validHistory);
+
+		// New logic for object-based history:
+		function historyToObject(formattedHistory) {
+			console.log({formattedHistory});
+			const obj: any = { typedSchema: {} };
+			let newHistory = [...formattedHistory];
+			
+			// Determine the operator
+			if (formattedHistory[0].toLowerCase() === 'query' || formattedHistory[0] === '{') {
+				obj.operator = 'query';
+			} else if (formattedHistory[0].toLowerCase() === 'mutation') {
+				obj.operator = 'mutation';
+			} else {
+				console.log('Throwing error');
+				throw new Error('Invalid query format');
+			}
+
+			// Determine if there are outter arguments (always the case for valid mutations)
+			if ((obj.operator === 'mutation') || (formattedHistory[0].toLowerCase() === 'query' && formattedHistory[2] === '(')) {
+				const {inners, outters} = collapse(formattedHistory, '(', ')');
+				newHistory = outters;
+				obj.typedSchema._args = parseArgs(inners);
+				// TODO REMOVE LOG: console.log('Final args:', obj.typedSchema._args);
+			}
+
+			console.log({newHistory});
+			traverseHistory(collapse(newHistory, '{', '}').inners, obj.typedSchema, obj);
+			return obj;
+		}
+
+		// Collapse ( -> ) or { -> }
+		function collapse(arr, openingChar, closingChar) {
+			const outters = [];
+			const inners = [];
+			let initialized = false;
+			let finished = false;
+			let state = 0; // 0 when outside, >= 1 when inside
+			let skipped = 0;
+			for (const word of arr) {
+				if (finished) {
+					outters.push(word);
+				} else if (word === openingChar) {
+					// Initialize search / Increment state
+					initialized = true;
+					if (state) inners.push(word);
+					state++;
+					skipped++;
+				} else if (word === closingChar) {
+					// Decrement state
+					state--;
+					if (state) inners.push(word);
+					skipped++;
+					// Check for completion
+					if (initialized && state <= 0) finished = true;
+				} else {
+					// Add to respective array
+					if (state) {
+						inners.push(word);
+						skipped++;
+					} else {
+						outters.push(word);
+					}
+				}
+			}
+			return { outters, inners, skipped };
+		}
+
+		function parseArgs(inners: string[]) {
+			// TODO: Convert any type from a string to its intended type for type testing
+			// - Example: "3" -> 3 (number)
+			// - Example: "[1," "2," "3]" -> [1, 2, 3] (array/nested)
+			// - Example: "{" "int:" "3" "}" -> {int: 3} (object/nested)
+			// - etc...
+			// TODO REMOVE LOG: console.log('Parsing args');
+			const obj: any = {};
+			for (let i = 0; i < inners.length; i++) {
+				// Starting off
+				const current = inners[i];
+				const next = inners[i + 1];
+				// TODO REMOVE LOG: console.log({current, next});
+				// We're dealing with an object
+				if (next === '{') {
+					// Leverage 'skipped' from collapse()
+					const { skipped } = collapse(inners.slice(i), '{', '}');
+					i += skipped;
+					obj[current.slice(0, -1)] = {};
+				}
+				// We're not dealing with an object
+				else {
+					// Slice off the ':' and add the key/value pair to obj
+					obj[current.slice(0, -1)] = next;
+					i++;
+				}
+			}
+			console.log('Done parsing args');
+			return obj;
+		}
+
+		function traverseHistory(historyRef, obj, schema) {
+			// There may be:
+				// a nested field
+					// There may be:
+						// params
+					// There will be:
+						// '{'
+						// Recurse
+				// a non-nested field
+				
+			// Do not mutate the original history
+			// TODO: Maybe it's fine to mutate it directly? Test this.
+			let history = [...historyRef];
+			// TODO REMOVE LOG: console.log('Traversing history', history);
+			// Check to see what follows the field to see what type it is (nested?)
+			for (let i = 0; i < history.length; i++) {
+				let current = history[i];
+				let next = history[i + 1];
+				let newObj: string | any = { _field: current };
+
+				// Handle cursor
+				if (current === '🐭') {
+					schema.cursor = obj;
+					obj._cursor = true;
+					continue;
+				}
+
+				obj[current] = newObj;  // Default to expect a nested field
+				// TODO REMOVE LOG: console.log({current, next});
+				// A scalar will be handled automatically by the for-loop incrementor.
+				// Check for a nested field.
+				if (next === '(') {
+					// TODO REMOVE LOG: console.log('Found arguments');
+					const { inners, skipped } = collapse(history.slice(i), '(', ')');
+					const args = parseArgs(inners);
+					newObj._args = args;
+					i += skipped;
+					current = history[i];
+					next = history[i + 1];
+					// TODO REMOVE LOG: console.log('New current:', current);
+					// TODO REMOVE LOG: console.log('New next:', next);
+				}
+				if (next === '{') {
+					// TODO REMOVE LOG: console.log('Handling nested field');
+					// Try removing the i++ if this doesn't work.
+					// I was trying to stimulate the loop increment but maybe its bad...
+					// i++;
+					const { inners, skipped } = collapse(history.slice(i), '{', '}');
+					i += skipped;
+					traverseHistory(inners, newObj, schema);
+				}
+				// Add the scalar's property
+				else {
+					obj[current] = 'Scalar';
+				}
+			}
+			// TODO REMOVE LOG: console.log('Done traversing history');
+		}
+
+		function isolateCursor(history) {
+			// Make sure to pass in the obj.typedSchema
+			// Break case: the cursor is found
+			if (history._cursor) {
+				// TODO REMOVE LOG: console.log('End point:', history);
+				// Flattens other side paths
+				return Object.entries(history).reduce((obj, [key, value]) => {
+					if (typeof value === 'object') obj[key] = 'Field';
+					else if (key === '_cursor') obj[key] = true;
+					else obj[key] = 'Scalar';
+					return obj;
+				}, {});
+			}
+			// Recurse case: Nest until the cursor is found
+			for (const field in history) {
+				// TODO REMOVE LOG: console.log('FIELD', field);
+				if (typeof history[field] === 'object') {
+					// TODO REMOVE LOG: console.log('Nesting into', field);
+					const traverse = isolateCursor(history[field]);
+					if (traverse) return { [field]: traverse }; // TODO: Remove parens?
+				}
+			}
+		}
+
+		function getSuggestions(history, schema, queryEntry) {
+			console.log({schema, queryEntry});
+			// Get the right casing for the operator
+			for (const entry in queryEntry) {
+				if (entry.toLowerCase() === history.operator) {
+					history.operator = entry;
+					break;
+				}
+			}
+
+			// Break early when there is no anchor point
+			const entryPoint = queryEntry[history.operator];
+			if (!entryPoint) {
+				console.log('Invalid entry - breaking');
+				return {};
+			}
+
+			// If the cursor is still within the outter-most level then return
+			// suggestions for that.
+			const typedHistory = history.typedSchema;
+			if (typedHistory._cursor) {
+				console.log('Found suggestions at ROOT');
+				const suggestions = filterOutUsedFields(typedHistory, entryPoint);
+				console.log({suggestions});
+				return suggestions;
+			}
+
+			// Break early when there is no more history
+			const nestedHistory = Object.keys(typedHistory)[0];
+			if (!nestedHistory) {
+				console.log('Reached end of history at root');
+				return {};
+			}
+
+			// Traverse
+			const returnType = entryPoint[nestedHistory].returnType;
+			return traverseSchema(typedHistory[nestedHistory], schema, returnType);
+		}
+
+		function traverseSchema(history, schema, returnType) {
+			console.log('Traversing:', returnType);
+			// Break early: End of history/schema
+			if (!history || !returnType) {
+				console.log('Hit end of history/schema');
+				return {};
+			}
+
+			// If the cursor depth was found
+			if (history._cursor) {
+				console.log('Found suggestions in traverse');
+				return filterOutUsedFields(history, schema[returnType]);
+			}
+
+			// Break early when there is no more history
+			const nestedHistory = Object.keys(history)[0];
+			if (!nestedHistory) {
+				console.log('Reached end of history within traverse');
+				return {};
+			}
+
+			// Otherwise traverse to find the fields at the cursor
+			const nestedReturnType = schema[returnType][nestedHistory].returnType;
+			return traverseSchema(history[nestedHistory], schema, nestedReturnType);
+		}
+
+		function filterOutUsedFields(history, schema) {
+			console.log('filterOutUsedFields:', {history, schema});
+			const options = {};
+			const historyFields = Object.keys(history);
+			// Look through all the possible fields at this level.
+			for (const [key, value] of Object.entries(schema)) {
+				// If the schema field hasn't been typed yet:
+				const valueWithType: any = value;
+				if (!historyFields.includes(key)) {
+					// Add it as a suggestion.
+					options[key] = {
+						arguments: valueWithType.arguments,
+						returnType: valueWithType.returnType
+					};
+				}
+			}
+			console.log('filterOutUsedFields:', {options});
+			return options;
+		}
 
 		// Provide suggestions
 		// function:
