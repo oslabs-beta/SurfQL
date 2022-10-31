@@ -1,6 +1,26 @@
-# SurfQL
+<!-- PROJECT LOGO -->
+<br />
+<div align="center">
+  <a href="https://github.com/oslabs-beta/SurfQL">
+  	<img src="logo.png" alt="SurfQLLogo" width="100%">
+  </a>
+  <p>SURFQL:
+A DEVELOPER TOOL FOR GRAPHQL</p>
+</div>
 
-This is the README for your extension "surfql". After writing up a brief description, we recommend including the following sections.
+
+## SurfQL
+SurfQL A VSCode extension to create way in the editor  to display the queries the user defines. This should make make it easier to developing GraphQl applications.
+
+### Autocomplete
+![Auto Complete](images/autocomplete.gif)
+### Visualizer
+![Visualizer](images/visualizer.gif)
+
+<!-- # SurfQL
+
+This is the README for your extension "surfql". After writing up a brief description, we recommend including
+the following sections.
 
 ## Features
 
@@ -39,33 +59,81 @@ Users appreciate release notes as you update your extension.
 
 Initial release of ...
 
-### 1.0.1
 
-Fixed issue #.
 
-### 1.1.0
+--->
 
-Added features X, Y, and Z.
 
----
+<!-- BUILT WITH -->
+## Built With
+<ul>
+  <li>
+     <a href="Next.js](https://nextjs.org/"> GraphQL</a>
+  </li>
+  <li>
+    <a href="https://reactjs.org/"> React</a>
+  </li>
+  <li>
+    <a href="https://code.visualstudio.com/api"> VSCode Extension API </a>
+  </li>
+  <li>
+     <a href="https://www.typescriptlang.org/"> Typescript </a>
+  </li>
 
-## Following extension guidelines
+</ul>
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+## Extension Settings
+Make sure to include a configuration file named `surfql.json`
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
 
-## Working with Markdown
+<!-- ROADMAP -->
+## Roadmap
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+- [ ] Create a Postman type of panel that sits in VSCode
+  - [ ] Create input fields for requests on the webview panel
+  - [ ] Find a way to access to the developers DB or AP and return the data
+- [ ] Make the parser handle schemas created
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
 
-## For more information
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+<!-- STEPS TO CONTRIBUTE -->
+## Steps to Contribute
 
-**Enjoy!**
+Contributions really make the open source community an amazing place to learn, inspire, and create. Any contributions made to surfQL are ** appreciated**.
+
+If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
+Don't forget to give the project a star! Thanks again!
+
+1. Fork & Clone SurfQL
+2. Create your Feature Branch (`git checkout -b <github_username>/<YourAmazingFeature>`)
+3. Make your Changes (See **Making Changes** below)
+4. Commit your Changes (`git commit -m '<Your Commit Message>'`)
+5. Push to the Branch (`git push origin <github_username>/<YourAmazingFeature>`)
+6. Open a Pull Request
+
+
+<!-- MAKING CHANGES -->
+### Making Changes
+
+1. Make your changes!
+2. Open /surfQL/src/extension.ts and save any changes you made
+3. Re-compile and re-build your extension using the command line: `npm run compile` & `npm run build`
+4. Press F5. A new VSCode window should open. This is your debugging environment!
+5. Repeat step 3 and refresh your debugging environment to test further changes
+
+
+<!-- THE SURFQL TEAM -->
+## The SURFQL Team
+
+* Ethan McRae [LinkedIn](https://www.linkedin.com/in/ethanmcrae/) | [Github](https://github.com/ethanmcrae)
+* Tristan Onfroy [LinkedIn](https://www.linkedin.com/in/tristan-onfroy/) | [Github](https://github.com/TristanO45)
+* Joy Zhang [LinkedIn](https://www.linkedin.com/in/yanqi-zhang-72a41b50/) | [Github](https://github.com/jzhang2018p)
+* Steve Benner [LinkedIn](https://www.linkedin.com/in/stephenbenner/) | [Github](https://github.com/CodeBrewLatte)
+* Dwayne Neckles [LinkedIn](https://www.linkedin.com/in/dneckles/) | [Github](https://github.com/dnecklesportfolio)
+
+<!-- CONTACT US -->
+## Contact Us
+Email: [surfqlapp@gmail.com](surfqlapp@gmail.com)
+
+Website: [http://surfql-static-site.s3-website-us-east-1.amazonaws.com/](http://surfql-static-site.s3-website-us-east-1.amazonaws.com/)
+
