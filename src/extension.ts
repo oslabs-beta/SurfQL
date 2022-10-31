@@ -1,3 +1,4 @@
+/* eslint-disable curly */
 /*---------------------------------------------------------
  * Copyright (C) Microsoft Corporation. All rights reserved.
  *--------------------------------------------------------*/
@@ -7,9 +8,8 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import parser from "./parser";
-import { offerSuggestions, suggestOptions, parseQuery,
-	fixBadFormatting, ignoreParentheses, filterNestedPaths,
-	filterFlatPaths, updateHistory } from "./lib/suggestions";
+import { offerSuggestions, parseDocumentQuery, fixBadHistoryFormatting,
+	historyToObject, isolateCursor, getSuggestions } from "./lib/suggestions";
 import { Schema, QueryEntry } from './lib/models';
 
 let schema: Schema;
@@ -18,8 +18,7 @@ let schemaPaths: string[] = [];
 let enumArr: Array<any> = [];
 let enumObj: any = {};
 
-let history: string[] = [];
-const triggerCharacters: string[] = ['{'];
+let disposable: vscode.Disposable;
 
 // This function will only be executed when the extension is activated.
 export async function activate(context: vscode.ExtensionContext) {
@@ -29,15 +28,6 @@ export async function activate(context: vscode.ExtensionContext) {
 	console.log('schema', schema);
 	console.log('queryEntry', queryEntry);
 	enumObj = enumToObj(enumArr);
-
-
-  // The command has been defined in the package.json file
-  // Now provide the implementation of the command with registerCommand
-  // The commandId parameter must match the command field in package.json
-  let disposable = vscode.commands.registerCommand("surfql.helloWorld", () => {
-    // Display a message box to the user
-    vscode.window.showInformationMessage("Hello World from SurfQL!");
-  });
 
   // Creates a popup with a schema tree visualizer.
   const previewSchema = vscode.commands.registerCommand(
@@ -121,24 +111,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(previewSchema);
 
-////////////////////////
-//Suggestion Provider//
-///////////////////////
-	// Each provider is a set of rules, for what needs to be typed, to create suggestions
-	// Providers are similar to event listeners
-	const suggestionProvider: vscode.Disposable = vscode.languages.registerCompletionItemProvider(
-		'javascript',
-		{
-			provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {		
-				const options = suggestOptions(schema, queryEntry, history);
-				return offerSuggestions(options) as vscode.CompletionItem[];
-			}
-		},
-		...triggerCharacters // => ['{']
-	);
-
-	context.subscriptions.push(suggestionProvider);
-
 	const hoverProvider: vscode.Disposable = vscode.languages.registerHoverProvider(
 		'javascript', 
 		{
@@ -156,7 +128,7 @@ export async function activate(context: vscode.ExtensionContext) {
     );
 	context.subscriptions.push(hoverProvider);
 
-	
+	// EVENT: On every document change: ...
 	vscode.workspace.onDidChangeTextDocument((e) => {
 		// Exit early when no schema has been loaded.
 		if (!schema) {
@@ -164,37 +136,50 @@ export async function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		// name .... na...[na,] -> {
-		const lineNumber: number = e.contentChanges[0].range.start.line;
-		const characterNumber: number = e.contentChanges[0].range.start.character;
-		const line: string = e.document.lineAt(lineNumber).text;
-		console.log('\n\nrow', lineNumber, 'column', characterNumber);
+		const cursorY: number = e.contentChanges[0].range.start.line; // Line number
+		const cursorX: number = e.contentChanges[0].range.start.character; // Column
+		// Trying to test what data can inform us in how to format the auto complete
+		// - Add a new line (before and after) (and indent) or not?
+		console.log('\n\nrow', cursorY, 'column', cursorX);
+		console.log('Current line:', e.document.lineAt(cursorY).text);
+		console.log('Changes:', e.contentChanges.map(x => x.text));
+		console.log('Change had new line:', e.contentChanges[0].text.includes('\n'));
 
-		// Create a query detector function here
-
-		const messyHistory: string[] = parseQuery(lineNumber, characterNumber, e.document); // Parse the document into an array
-		const formattedHistory: string[] = fixBadFormatting(messyHistory); // Stimulate spacing around brackets/parentheses
-		const cleanHistory: string[] = ignoreParentheses(formattedHistory); // Ignore the parentheses and their contents
-		const cleanerHistory: string[] = filterNestedPaths(cleanHistory); // Ignore nested objects that invalidate the path
-		const validHistory: string[] = filterFlatPaths(cleanerHistory); // Ignore properties that aren't part of the history
-		history = updateHistory(validHistory);
-
-		// Provide suggestions
-		// function:
-			// const currentSchemaBranch = traverseSchema(schema, history);
-				// Update traverseSchema to check for incomplete last branch (ex: nam...)
+		// Parse the document's current query into an array.
+		const messyHistoryArray = parseDocumentQuery(cursorY, cursorX, e.document);
+		console.log('Original history array:', messyHistoryArray);
+		// Stimulate spacing around brackets/parentheses for easier parsing.
+		const formattedHistoryArray: string[] = fixBadHistoryFormatting(messyHistoryArray);
+		console.log('Formatted history array:', formattedHistoryArray);
+		// Parse history array into an object.
+		const historyObject = historyToObject(formattedHistoryArray);
+		console.log('COMPLETE SCHEMA:', historyObject);
+		// Clean up the history object.
+		historyObject.typedSchema = isolateCursor(historyObject.typedSchema);
+		console.log('ISOLATED SCHEMA:', historyObject);
+		// Create suggestions based off of the history and schema.
+		const suggestions = getSuggestions(historyObject, schema, queryEntry);
+		console.log('SUGGESTIONS:', suggestions);
 		
-		//FUNCTIONALITY
+		// Dispose of the old suggestion.
+		if (disposable) disposable.dispose();
+		// Create the CompletionItems.
+		disposable = vscode.languages.registerCompletionItemProvider(
+			'javascript',
+			{
+				provideCompletionItems() {		
+					return offerSuggestions(suggestions) as vscode.CompletionItem[];
+				}
+			},
+			'\n'
+		);
+		// Subscribe them to be popped up as suggestions.
+		context.subscriptions.push(disposable);
 
-		// return suggestion and dispose?
-		// Is there a better way to suggest something without subscribing? (a one-time suggest function)
+		// TODO:
+		// - Add cursor detection within args to auto suggest args instead of fields
+		// - Create TypeScript types for all these functions
 
-		//pokemon -> type -> ele..... [pokemon, type, ele]
-		//compare against schema
-		// if last word typed == "name" ...na ... string[0],string[1] == name
-		// create a new suggestion item that contains the full word name
-		// if currentSchemaBranch[electric, fire] .... fi
-		
 	});
 };
 

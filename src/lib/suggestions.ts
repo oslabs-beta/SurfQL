@@ -1,3 +1,4 @@
+/* eslint-disable curly */
 import { CompletionItem, CompletionItemKind, SnippetString, TextDocument, MarkdownString } from 'vscode';
 import { indentation } from '../constants';
 import { Schema, QueryEntry, SchemaType } from './models';
@@ -13,9 +14,9 @@ export function offerSuggestions(branch: SchemaType): CompletionItem[] {
         let tempCompItem = new CompletionItem(`${key}: Option returned type here`, CompletionItemKind.Keyword); // What is displayed
         if (branch[key].arguments) {
             const insertText = buildArgSnippet(key, branch[key].arguments);
-            tempCompItem.insertText = new SnippetString('\n' + indentation + insertText + '${0}\n');
+            tempCompItem.insertText = new SnippetString(insertText + '${0}');
         } else {
-            tempCompItem.insertText = new SnippetString('\n' + indentation + key + '${0}\n'); // What is added
+            tempCompItem.insertText = new SnippetString(key + '${0}'); // What is added
         }
         // tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
         //TRY to do popup
@@ -23,16 +24,6 @@ export function offerSuggestions(branch: SchemaType): CompletionItem[] {
         tempCompItem.detail = `return type ${branch[key].returnType}`;
         suggestions.push(tempCompItem);
     }
-    // branch.forEach((option: string) => {
-    //     let tempCompItem = new CompletionItem(`${option}: Option returned type here`, CompletionItemKind.Keyword); // What is displayed
-    //     tempCompItem.insertText = new SnippetString('\n' + indentation + option + '${0}\n'); // What is added
-    //     // tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
-    //     //TRY to do popup
-    //     tempCompItem.label = `${option}: type detail here`;
-    //     tempCompItem.documentation = new MarkdownString('option type here');
-    //     tempCompItem.detail = `return ${option} type detail here`;
-    //     suggestions.push(tempCompItem);
-    // }); 
     return suggestions;
 }
 
@@ -54,154 +45,364 @@ const buildArgSnippet = (key: string, argArr: Array<any>) => {
 };
 
 /**
- * Parses through the schema file based on the history to determine possible suggestions.
- * @param schema The global schema variable parsed from the schema file containing all the types.
- * @param queryEntry The global queryEntry variable parsed from the schema file containing all the entry points for each operation (query, mutation, subscribe)
- * @param history An array representing how far into the query the user has traversed so far in the query they're constructing.
- * @returns An array of suggestion strings.
- */
-export function suggestOptions(schema: Schema, queryEntry: QueryEntry, history: string[]): SchemaType {
-    // TODO:
-    // Refactor because there are only 2 operations and 1 other entry type (subscribe).
+		 * Converts a history array to a history object.
+		 * @param historyArray Any array of strings representing a valid query
+		 * @returns A nested object that resembles the document's query
+		 */
+export function historyToObject(historyArray: string[]) {
+    const historyObj: any = { typedSchema: {} };
+    let newHistory = [...historyArray];
     
-    const firstWord: string = history[0].replace('`', ''); // Remove any attached backticks
-    // Parse the document handling a query initiated with a query operator.
-    if (firstWord === 'query') {
-        // Find the index to the currently used operation (Query, Mutation, Subscription)
-        // and 'query' needs to be type matched to 'Query'.
-        const queryOperationIndex: string | void = matchKeyToCorrectCase(queryEntry, firstWord);
-        // If the firstWord was found as a valid entry point (Query, Mutation, Subscription):
-        if (queryOperationIndex) {
-            // Reference the actual entry object (Query, Mutation, Subscription)
-            const queryOperation: any = queryEntry[queryOperationIndex]; // TODO: Replace 'any'
-            if (history.length > 1) {
-                const firstType: string = history[1];
-                // Validate that the type is an entry point within the operation (Query, Mutation, Subscription).
-                const valid: boolean = Object.keys(queryOperation).some(key => key === firstType);
-                if (valid) {
-                    // Reference the actual type object (The first type given after the query operator)
-                    console.log('Compare', firstType, queryOperation[firstType].returnType);
-                    console.log(schema[queryOperation[firstType].returnType]);
-                    const type: SchemaType = schema[queryOperation[firstType].returnType];
-                    
-                    // Pair the schema with the history to traverse the schema to make suggestions
-                    //  based off of how nested the user is currently inside the query.
-                    return traverseSchema(schema, type, history.slice(2));
-                }
-                // If the first type is not found within the entry points within the operation
-                return null; // Return no suggestions
-            }
-            else {
-                return queryOperation; // Array with the first element as the query name
+    // Determine the operator.
+    if (newHistory[0].toLowerCase() === 'query' || newHistory[0] === '{') {
+        historyObj.operator = 'query';
+    } else if (newHistory[0].toLowerCase() === 'mutation') {
+        historyObj.operator = 'mutation';
+    } else {
+        console.log('Throwing error: Invalid query format');
+        throw new Error('Invalid query format');
+    }
+
+    // Determine if there are outter arguments (always the case for valid mutations).
+    if ((historyObj.operator === 'mutation') || (newHistory[0].toLowerCase() === 'query' && newHistory[2] === '(')) {
+        const {inners, outters} = collapse(newHistory, '(', ')');
+        newHistory = outters;
+        historyObj.typedSchema._args = parseArgs(inners);
+    }
+
+    // Recursively nest into the typed schema to build out the historyObj.
+    traverseHistory(collapse(newHistory, '{', '}').inners, historyObj.typedSchema, historyObj);
+
+    // Return the history object that was constructed from the history array.
+    return historyObj;
+}
+
+/**
+ * Takes in an array, removing everything between the first set of opening
+ * and closing characters. The enclosed area (inners) and surrounding area
+ * (outters) are returned as well as the modification count (skipped).
+ * @param arr Any array of strings (history array)
+ * @param openingChar Any character: '{', '(', etc...
+ * @param closingChar Any character: '}', ')', etc...
+ * @returns {inners, outters, skipped}
+ */
+function collapse(arr: string[], openingChar: string, closingChar: string) {
+    const outters: string[] = []; // The contents outside the opening/closing chars
+    const inners: string[] = []; // The contents within the opening/closing chars
+    let state: number = 0; // 0 when outside (outters); >= 1 when inside (inners)
+    let skipped: number = 0; // Tracks how many words were added to inners
+    let initialized: boolean = false; // Helps determine when the encapsulation is finished
+    let finished: boolean = false; // When finished the rest of the words are added to outters
+    for (const word of arr) {
+        if (finished) {
+            // Checking to see if the encapsulation (collapse) has finished.
+            outters.push(word); // When collapse is finished add the rest to outters
+        } else if (word === openingChar) {
+            // Checking to see if the current word matches the opening char.
+            initialized = true; // Initialize search (may repeat which is okay)
+            if (state) inners.push(word); // If this is nested within the encapsulation then include it in the inners
+            state++; // Increment the state: We are nested 1 level deeper now
+            skipped++; // Increment the skipped count
+        } else if (word === closingChar) {
+            // Checking to see if the current word matches the closing char.
+            state--; // Decrement the state: We are 1 level less nested now
+            if (state) inners.push(word); // If this is nested within the encapsulation then include it in the inners
+            skipped++; // Increment the skipped count
+            if (initialized && state <= 0) finished = true; // Check for completion
+        } else {
+            // Otherwise add the current word to its respective array.
+            if (state) {
+                inners.push(word);
+                skipped++;
+            } else {
+                outters.push(word);
             }
         }
-        // If the first word was not found in the operations then exit
-        return null; // Returning no suggestions
-    } else if(history[0] === 'mutation') {
-        console.log('Mutation isn\'t supported.');
-    } else {
-        console.log('Query was not used. Need to add support for', history[0]);
+    }
+    return { outters, inners, skipped };
+}
+
+/**
+ * Parses an array of strings into an object with argument data.
+ * @param inners Inners captured from the collapse() method integrate well
+ * @returns An object resembling key/value pairs of Apollo GraphQL arguments
+ */
+function parseArgs(inners: string[]) {
+    // TODO: Convert any type from a string to its intended type for type testing
+    // - Example: "3" -> 3 (number)
+    // - Example: "[1," "2," "3]" -> [1, 2, 3] (array/nested)
+    // - Example: "{" "int:" "3" "}" -> {int: 3} (object/nested)
+    // - etc...
+    const args: any = {};
+    // Iterate through the argument inners.
+    for (let i = 0; i < inners.length; i++) {
+        // Declare the current and next values for convenience.
+        const current: string = inners[i];
+        const next: string = inners[i + 1];
+        // The current key/value involves an object.
+        if (next === '{') {
+            // Leverage 'skipped' from collapse() to ignore the object details.
+            const { skipped } = collapse(inners.slice(i), '{', '}');
+            i += skipped;
+            args[current.slice(0, -1)] = {}; // Assign an empty object as a indicator
+        }
+        // The current key/value does not involve an object.
+        else {
+            // Slice off the ':' and add the key/value pair to obj
+            args[current.slice(0, -1)] = next.replace(/,$/, ''); // Also ignore trailing commas
+            i++; // Increment i an extra time here to move to the next 2 key/values.
+        }
+    }
+    return args;
+}
+
+/**
+ * Traverses a history array to recursively build out the object array.
+ * @param historyRef The current section of history that needs to be parsed
+ * @param obj The portion of the history object that is being built
+ * @param entireHistoryObj The entire history object used to reference root-level properties
+ */
+function traverseHistory(historyRef: string[], obj: any, entireHistoryObj: any): void {		
+    // Do not mutate the original history to keep this function pure.
+    let history: string[] = [...historyRef];
+
+    // Check to see what follows the field to see what type it is (nested?)
+    for (let i = 0; i < history.length; i++) {
+        let current = history[i];
+        let next = history[i + 1];
+        let newObj: string | any = {};
+
+        // The current word is just a message that this cursor is at this level.
+        if (current === '🐭') {
+            entireHistoryObj.cursor = obj; // TODO: Remove this? Quick access to the cursor object has never been leveraged.
+            obj._cursor = true; // ⭐️ Signify that the cursor was found at this level
+            continue; // Increment i and iterate the loop
+        }
+
+        obj[current] = newObj;  // Default to expect a nested field
+
+        // Check for arguments:
+        if (next === '(') {
+            const { inners, skipped } = collapse(history.slice(i), '(', ')');
+            const args = parseArgs(inners); // Parse the arguments
+            newObj._args = args; // Assign the arguments to the new object
+            i += skipped; // Skip the rest of the argument inners
+            current = history[i]; // Reassign 'current' for the following if block
+            next = history[i + 1]; // Reassign 'next' for the following if block
+        }
+        // Check for a bracket signifying a nested field:
+        if (next === '{') {
+            const { inners, skipped } = collapse(history.slice(i), '{', '}');
+            // Skip what was found within the nested field and continue to process
+            // other fields at this level.
+            i += skipped;
+            // Recurse to process the nested field that was skipped.
+            traverseHistory(inners, newObj, entireHistoryObj);
+        }
+        // If the field was not nested: Add the scalar's property.
+        else {
+            obj[current] = 'Scalar';
+        }
     }
 }
 
-function matchKeyToCorrectCase(obj: any, key: string): string | void {
-    return Object.keys(obj).find(objKey => objKey.toLowerCase() === key.toLowerCase());
+/**
+ * Removed all fields that do not lead up to / surround the cursor.
+ * @param history The history object
+ * @returns A smaller history object
+ */
+export function isolateCursor(history) {
+    // Break case: the cursor is found
+    if (history._cursor) {
+        // Flattens other side paths
+        return Object.entries(history).reduce((obj, [key, value]) => {
+            if (typeof value === 'object') obj[key] = 'Field';
+            else if (key === '_cursor') obj[key] = true;
+            else obj[key] = 'Scalar';
+            return obj;
+        }, {});
+    }
+
+    // Recurse case: Nest until the cursor is found
+    for (const field in history) {
+        if (typeof history[field] === 'object') {
+            const traverse = isolateCursor(history[field]);
+            if (traverse) return { [field]: traverse };
+        }
+    }
 }
 
 /**
- * Traverses a schema (recursively) to return the branches at a given level
- * @param schema The parsed schema file.
- * @param history An array representing the traversal path for the obj.
- * @returns The properties/keys at the end of the traversed object.
+ * Compares the history with the schema to make field suggestions.
+ * @param history The history object
+ * @param schema The schema object
+ * @param queryEntry The query entry object
+ * @returns An object containing suggestion data
  */
-export function traverseSchema(schema: Schema, type: SchemaType, history: string[]): SchemaType {
-    console.log('Type:', type);
-    // If our type isn't an object we have hit the end of our traversal
-	if (typeof type !== 'object') {
-        console.log('You\'ve reached the end of the object!');
-		return null;
-        // TODO: Check if its incomplete (ex: na... -> name)
-        // if its the last history word
-        // if it matches with anything else
-        // THEN give back: return Object.keys(schema);
-	}
-	// If we have hit the end of our history return the keys within type.
-    else if (history.length === 0) {
-        console.log("look at type",type);
-        const options: string[] = Object.keys(type);
-        console.log('The options are', options.join(', '));
-		return type;
-	}
-	// Traverse until and end is reached
-    const nextType: SchemaType = schema[type[history[0]].returnType];
-    return traverseSchema(schema, nextType, history.slice(1)) as SchemaType;
-};
+export function getSuggestions(history: any, schema: any, queryEntry: any) {
+    // Get the right casing for the operator
+    for (const entry in queryEntry) {
+        if (entry.toLowerCase() === history.operator) {
+            history.operator = entry; // Reassign the operator with the correct case
+            break; // Exit: The correct operator was found and updated
+        }
+    }
 
-//TODO
-// [ ] Auto complete anywhere (no trigger characters needed)
-// [X] Config file
-// [X] Enable support for 'mutation' or 'query'
+    // Exit early when there is no anchor point
+    const entryPoint = queryEntry[history.operator];
+    if (!entryPoint) {
+        console.log('Invalid query entry. Check the schema for entry points.');
+        return {};
+    }
 
-// /**
-//  * At any point in the query, this function will suggest/complete what the user typed based on the existing schema.
-//  * @param schema
-//  * @param history
-//  * @return 
-//  */
-// export function autoCompleteAnywhere(schema : any, history: string[]) : CompletionItem[] {
-//     //may require separate trigger character functionality
-//     const currentSchemaBranch = traverseSchema(schema, history);
-// 	return offerSuggestions(currentSchemaBranch) as CompletionItem[];
-// }
+    // If the cursor is at the outter-most level then return those outter-most
+    // fields as suggestions.
+    const typedHistory = history.typedSchema;
+    if (typedHistory._cursor) {
+        return filterOutUsedFields(typedHistory, entryPoint); // suggestions
+    }
+
+    // Exit early when there is no more history.
+    const nestedHistory = Object.keys(typedHistory)[0];
+    if (!nestedHistory) return {};
+
+    // Traverse the rest of the way.
+    const returnType = entryPoint[nestedHistory].returnType;
+    return traverseSchema(typedHistory[nestedHistory], schema, returnType);
+}
+
+/**
+ * Traverses through the history and schema to find the fields surrounding
+ * the cursor. Suggestions will be created based off of the remaining unused
+ * fields.
+ * @param history The history object
+ * @param schema The schema object
+ * @param returnType The current field within the schema
+ * @returns 
+ */
+function traverseSchema(history: any, schema: any, returnType: string) {
+    // Exit early: End of history/schema.
+    if (!history || !returnType) return {};
+
+    // If the cursor depth was found:
+    if (history._cursor) {
+        // Convert the unused fields to suggestion objects.
+        return filterOutUsedFields(history, schema[returnType]);
+    }
+
+    // Break early when there is no more history to traverse through.
+    const nestedHistory: string = Object.keys(history)[0];
+    if (!nestedHistory) return {};
+
+    // Otherwise traverse to find the fields at a deeper level.
+    const nestedReturnType: string = schema[returnType][nestedHistory].returnType;
+    return traverseSchema(history[nestedHistory], schema, nestedReturnType);
+}
+
+/**
+ * Compares the history with the schema to only return unused fields for
+ * suggestions.
+ * @param history The history object 
+ * @param schema The schema object
+ * @returns Suggestion objects
+ */
+function filterOutUsedFields(history: any, schema: any) {
+    const suggestion: any = {};
+    const historyFields: string[] = Object.keys(history);
+    // Look through all the possible fields at this level.
+    for (const [key, value] of Object.entries(schema)) {
+        const valueWithType: any = value; // A typescript lint fix
+        // If the schema field hasn't been typed yet:
+        if (!historyFields.includes(key)) {
+            // Add it as a suggestion.
+            suggestion[key] = {
+                arguments: valueWithType.arguments,
+                returnType: valueWithType.returnType
+            };
+        }
+    }
+    return suggestion; // Return all the suggestion objects
+}
 
 /**
  * Parses the document returning an array of words/symbols.
- * However it will exit early if it cannot find the start of a query near the cursor.
- * @param lineNumber Lists the VSCode line [index 0] the user is on.
- * @param cursorLocation A number representing the cursor location.
- * @param document The document nested inside a vscode event
- * @return Words/symbols from the start of the query to the cursor
+ * However it will exit early if it cannot find the start/end of a query near the cursor.
+ * @param cursorY The line number the cursor is currently located.
+ * @param cursorX The column number the cursor is currently located.
+ * @param document The document nested inside a vscode event.
+ * @return Words/symbols from the start of the query to the cursor.
  */
- export function parseQuery(lineNumber: number, cursorLocation:number, document: TextDocument ): string[] {
-    let messyHistory: string[] = [];
+ export function parseDocumentQuery(cursorY: number, cursorX: number, document: TextDocument): string[] {
+    // Find the start of the query.
+    let messyHistory: string[] = findBackTick([], -1, 1000, document, cursorY, cursorX).reverse();
+    // Indicate the cursor (mouse) location.
+    messyHistory.push('🐭');
+    // Find the end of the query.
+    messyHistory = findBackTick(messyHistory, 1, 1000, document, cursorY, cursorX);
+    // Filter out the empty strings from the query array.
+    messyHistory = messyHistory.filter((str) => str); 
+    // Return
+    return messyHistory;
+}
+
+/**
+ * Appends all characters between the cursor and a backtick.
+ * @param history The current history that will be appended to.
+ * @param direction 1 or -1 depending on the direction (positive moves down the page).
+ * @param limit Limits amount of lines to process / characters on one line to process.
+ * @param document The file we will be reading from to find the query.
+ * @param cursorY The line number the cursor is currently located.
+ * @param cursorX The column number the cursor is currently located.
+ * @returns An array of words/characters.
+ */
+function findBackTick(history: string[], direction: 1 | -1, limit: number, document: TextDocument, lineNumber: number, cursorLocation: number): string[] {
+    const newHistory = [];
     let line: string = document.lineAt(lineNumber).text;
-    line = line.slice(0, cursorLocation + 1); // Ignore everything after the cursor
-    const limit = 1000; // Limits amount of lines to process / characters on one line to process
+    // The slice will depend on the 'direction' parameter.
+    // - Ignore everything before/after the cursor
+    line = (direction === -1) ? line.slice(0, cursorLocation + 1) : line.slice(cursorLocation + 1);
     
     // Create an array of words (and occasional characters such as: '{')
     // Iterate through the lines of the file (starting from the cursor moving up the file)
-    while (lineNumber >= 0 && messyHistory.length <= limit) {
+    while (lineNumber >= 0 && newHistory.length <= limit) {
         // When the start of the query was found: This is the last loop
         if (line.includes('`')) {
-            lineNumber = -1; // Set line number to -1 to end the loop
+            lineNumber = -2; // Set line number to -2 to end the loop (-1 doesn't work)
             // Slice at the backtick
-            const startOfQueryIndex = line.indexOf('`');
-            line = line.slice(startOfQueryIndex+1);
+            const backTickIndex = line.indexOf('`');
+            // The slice will depend on the 'direction' parameter.
+            // - Ignore everything before/after the back tick
+            line = (direction === -1) ? line.slice(backTickIndex + 1) : line.slice(0, backTickIndex);
         }
 
         // Detect if the file is compressed into a one-line file.
-        // Exit early if the line is 1000+ characters.
+        // Exit early if the line is 1000+ characters (the limit).
         if (line.length > limit) {
             console.log('Line has over', limit, 'characters. Limit reached for parsing.');
             return [];
         }
 
-        messyHistory.push(...line.split(/\s+/g).reverse()); // Split into an array of words (splitting at each white space)
-        lineNumber--;
+        // Divide the line (string) into an array of words.
+        const arrayOfWords = line.split(/\s+/g);
+        // Depending on the direction, reverse the array.
+        if (direction === -1) arrayOfWords.reverse();
+        // Append the array of words to the new history.
+        newHistory.push(...arrayOfWords);
+        // Increment in the correct direction
+        lineNumber += direction;
         if (lineNumber >= 0) {
             line = document.lineAt(lineNumber).text;
+            // If we hit the end of our file exit early
+            if (lineNumber === document.lineCount) {
+                console.log({lineNumber, total: document.lineCount});
+                console.log('Hit EOF without finding the backtick. Direction:', direction);
+                return [];
+            }
         }
     }
 
-    // Failed to limit
-    console.log('the length of the history array is now', messyHistory.length);
-    
-    // Clean up the parsed query array into a useable history array
-    messyHistory = messyHistory.filter((str) => str); // Filter out the empty strings from the query array
-    messyHistory.reverse(); // The nested order is opposite from how it is typed
-    
-    console.log('Messy History:', messyHistory.join(' -> ') || 'empty...');
-    return messyHistory;
+    // The appending location will depend on the 'direction' parameter.
+    return (direction === -1) ? [...newHistory, ...history] : [...history, ...newHistory];
 }
 
 /**
@@ -209,7 +410,7 @@ export function traverseSchema(schema: Schema, type: SchemaType, history: string
  * @param messyHistory 
  * @return An array of words with the brackets and parentheses detached.
  */
-export function fixBadFormatting(messyHistory: string[]): string[] {
+export function fixBadHistoryFormatting(messyHistory: string[]): string[] {
     return messyHistory.reduce((relevant: string[], word: string) => {
         let reformedWord = ''; // Will hold the words as they are re-formed
         for (const char of word) {
@@ -228,93 +429,4 @@ export function fixBadFormatting(messyHistory: string[]): string[] {
         }
         return relevant; // Return the total words so far
     }, [] as string[]);
-}
-
-/**
- * Parenthesis don't affect the history. Remove them from the array so they don't interfere with the path.
- * @param formattedHistory An unfiltered array that potentially contains parentheses.
- * @return An array without parentheses and inner contents of parentheses.
- */
-export function ignoreParentheses(formattedHistory: string[]): string[] {
-    console.log('Formatted History:', formattedHistory.join(' -> ') || 'empty...');
-    const cleanHistory: string[] = []; // The return result of only relevant strings
-    let ignoring: boolean = false; // The status of the filter/loop process
-    for (const word of formattedHistory) {
-        if (ignoring) {
-            // Ignore from an opening '(' to a closing ')'
-            if (word === ')') {
-                ignoring = false;
-            }
-        } else {
-            if (word === '(') {
-                // Check for an opening '('
-                ignoring = true;
-            } else {
-                // Preserve the word
-                cleanHistory.push(word);
-            }
-        }
-    }
-    return cleanHistory;
-}
-
-/**
- * Filter out nested side paths from the history array.
- * @param cleanHistory An array with a valid history path that needs to be isolated.
- * @return An array without nested side paths.
- */
-export function filterNestedPaths(cleanHistory: string[]): string[] {
-    console.log('Clean History:', cleanHistory.join(' -> ') || 'empty...');
-
-    const newHistory: string[] = [];
-    
-    let ignore: number = 0; // The amount of nested side paths we are within at a given point
-    // Loop through the array backwards
-    for (let i = cleanHistory.length - 1; i >= 0; i--) {
-        const word = cleanHistory[i]; // The current array element
-        if (word === '}') {
-            ignore++; // When we find a closing bracket ignore everything up to the opening bracket
-        } else if (ignore) {
-            if (word === '{') {
-                i--; // When we find the opening bracket ignore the following word
-                ignore--; // Indicate we have escaped a nested side path
-            }
-        } else {
-            newHistory.unshift(word); // The current word is valid for this process
-        }
-    }
-
-    return newHistory;
-}
-
-/**
- * Filter out properties that don't connect the cursor to the start of the query.
- * @param cleanerHistory An array with a valid history path that needs to be isolated.
- * @return An array without side properties.
- */
-export function filterFlatPaths(cleanerHistory: string[]): string[] {
-    console.log('Cleaner History:', cleanerHistory.join(' -> ') || 'empty...');
-    const validHistory: string[] = [];
-    cleanerHistory.forEach((word: string, i: number) => {
-        // Make sure the current word isn't a property.
-        // Leaving the first word as it will be the query type (ex: query, mutation, etc...)
-        if (cleanerHistory[i + 1] === '{' || i === 0) {
-            validHistory.push(word); // Add as a valid word
-        }
-    });
-    return validHistory;
-}
-
-/**
- * Cleans up an array to be used as the new history.
- * @param validHistory An array representing the words within a query that connect the start of a query to the cursor.
- * @return Nothing... but history is re-declared.
- */
-export function updateHistory(validHistory: string[]): string[] {
-    let finalHistory: string[] = [];
-    console.log('Valid History:', validHistory.join(' -> ') || 'empty...');
-    finalHistory = validHistory.map((str) => str.replace('{', '')); // Clean up the opening brackets. Ex: '{name' or '{'
-    finalHistory = finalHistory.filter((str) => str); // Filter out the empty strings from the history array
-    console.log('History:', finalHistory.join(' -> ') || 'empty...');
-    return finalHistory;
 }
