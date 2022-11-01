@@ -22,7 +22,6 @@ let disposable: vscode.Disposable;
 
 // This function will only be executed when the extension is activated.
 export async function activate(context: vscode.ExtensionContext) {
-	displayConfigPrompt();
 	// At startup
   console.log('SurfQL is now active 🌊');
 	[ queryEntry, schema, schemaPaths, enumArr ] = await configToSchema(); // Parse schema files from the config file
