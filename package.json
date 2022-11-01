@@ -30,7 +30,7 @@
         {
           "id": "surfql",
           "title": "SurfQL",
-          "icon": "media/icon.svg"
+          "icon": "media/icon.png"
         }
       ]
     },
@@ -39,7 +39,7 @@
         {
           "id": "surfql",
           "name": "SurfQL",
-          "icon": "media/icon.svg",
+          "icon": "media/icon.png",
           "contextualTitle": "Package Explorer"
         }
       ]
@@ -81,6 +81,7 @@
   "dependencies": {
     "apollo-server": "^3.10.1",
     "axios": "^0.27.2",
-    "graphql": "^16.5.0"
+    "graphql": "^16.5.0",
+    "vsce": "^2.13.0"
   }
 }
