@@ -10,7 +10,7 @@
     "Other"
   ],
   "activationEvents": [
-    "*",
+    "workspaceContains:**/surfql.json",
     "onCommand:surfql.previewSchema"
   ],
   "main": "./dist/extension.js",
