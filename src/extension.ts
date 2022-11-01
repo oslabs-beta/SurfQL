@@ -22,6 +22,7 @@ let disposable: vscode.Disposable;
 
 // This function will only be executed when the extension is activated.
 export async function activate(context: vscode.ExtensionContext) {
+	displayConfigPrompt();
 	// At startup
   console.log('SurfQL is now active 🌊');
 	[ queryEntry, schema, schemaPaths, enumArr ] = await configToSchema(); // Parse schema files from the config file
@@ -250,7 +251,7 @@ async function configToSchema(): Promise<[any, any, string[], Array<any>]> {
 	const filepath: string | undefined = await vscode.workspace.findFiles('**/surfql.json', '**/node_modules/**', 1).then(([ uri ]: vscode.Uri[]) => {
 		// When no file was found:
 		if (!uri) {
-			createSchemaPrompt(); // Prompt the user
+			displayConfigPrompt(); // Prompt the user
 			return; // Return undefined
 		}
 		// When a config file was found return the file path.
@@ -278,8 +279,20 @@ async function configToSchema(): Promise<[any, any, string[], Array<any>]> {
 	return [queryEntry, schemaObject, [schemaPath], enumArr];
 }
 
-function createSchemaPrompt(): void {
-	vscode.window.showInformationMessage("No surfql.json found");
+function displayConfigPrompt(): void {
+	vscode.window.showInformationMessage("No SurfQL config found. Would you like to generate one for this workspace?", 'Generate', 'Okay', 'Don\'t show again').then((userChoice) => {
+		if (userChoice === undefined) {
+			console.log('Create schema prompt dismissed');
+			return;
+		} else {
+			console.log({userChoice});
+			if (userChoice === 'Generate') {
+				console.log('Generating a config file...');
+			} else if (userChoice === 'Don\'t show again') {
+				console.log('Disabling this popup');
+			}
+		}
+	});
 	// TODO: Add a message with an "Okay" button that will auto-generate a config
 	//       file for the user (if they press "Okay").
 	// TODO: The file created will be loaded with { "schema": "./your-file-here/graphql" }
