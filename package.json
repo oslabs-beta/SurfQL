@@ -2,7 +2,7 @@
   "name": "surfql",
   "displayName": "SurfQL",
   "description": "Extends the VS Code IDE to auto-fill GraphQL queries.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "surfql",
   "engines": {
     "vscode": "^1.70.0"
