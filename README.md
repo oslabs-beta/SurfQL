@@ -83,7 +83,13 @@ Initial release of ...
 </ul>
 
 ## Extension Settings
-Make sure to include a configuration file named `surfql.json`
+Make sure to include a configuration file named `surfql.config.json`
+#### Example
+```json
+{
+  "schema": "./<path>.<graphql/graphqls/js>"
+}
+```
 
 
 <!-- ROADMAP -->
