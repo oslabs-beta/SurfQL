@@ -29,23 +29,24 @@ window.addEventListener("message", (event) => {
   //call parser
   if (message.command === "sendSchemaInfo") {
     // const [schemaArr, returnObj] = parser(text);
-    const [schemaArr, queryMutation, enumArr, inputArr] = JSON.parse(
+    const [schemaArr, queryMutation, enumArr, inputArr, scalarArr] = JSON.parse(
       message.text
     );
-    console.log("here it comes", [schemaArr, queryMutation, enumArr, inputArr]);
-    draw(queryMutation, schemaArr, enumArr, inputArr);
+    console.log("here it comes", [schemaArr, queryMutation, enumArr, inputArr, scalarArr]);
+    draw(queryMutation, schemaArr, enumArr, inputArr, scalarArr);
     return;
   }
 });
 
 // //display function
-function draw(qmArr, schemaArr, enumArr, inputArr) {
+function draw(qmArr, schemaArr, enumArr, inputArr, scalarArr) {
   //create enumLeaf array for check type logic
   const enumLeaf = [];
   enumArr.forEach((e) => {
     enumLeaf.push(e.name);
   });
-  const scalarTypes = ["Int", "Float", "String", "Boolean", "ID"];
+  const scalarTypes = ["Int", "Float", "String", "Boolean", "ID"].concat(scalarArr);
+  console.log('scalarTypes', scalarTypes);
 
   //first div called Entry to demo query and mutation info
   const entry = document.createElement("div");
@@ -87,7 +88,7 @@ function draw(qmArr, schemaArr, enumArr, inputArr) {
 
         schemaArr.forEach((e) => {
           if (fieldtype === e.name) {
-            drawNext(schemaArr, btn, e, enumLeaf); 
+            drawNext(schemaArr, btn, e, enumLeaf, scalarTypes); 
           }
         });
       });
@@ -130,7 +131,7 @@ function draw(qmArr, schemaArr, enumArr, inputArr) {
       const childLi = document.createElement("li");
       childLi.setAttribute("class", "fieldType-alt");
       //check for type
-      if (root.fields[field] in scalarTypes || root.fields[field] in enumLeaf) {
+      if (scalarTypes.includes(root.fields[field]) || enumLeaf.includes(root.fields[field])) {
         childLi.textContent = `${field}: ${root.fields[field]}`;
       } else {
         const btn = document.createElement("a");
@@ -145,7 +146,7 @@ function draw(qmArr, schemaArr, enumArr, inputArr) {
 
           schemaArr.forEach((e) => {
             if (fieldtype === e.name) {
-              drawNext(schemaArr, btn, e, enumLeaf); 
+              drawNext(schemaArr, btn, e, enumLeaf, scalarTypes); 
             }
           });
         });
@@ -200,8 +201,7 @@ function draw(qmArr, schemaArr, enumArr, inputArr) {
 }
 
 //function draw the next level fields
-function drawNext(array, node, rootObj, enumLeaf) {
-  const arrayTypes = ["Int", "Float", "String", "Boolean", "ID"];
+function drawNext(array, node, rootObj, enumLeaf, scalarTypes) {
   //create field display
   const fieldDisplay = document.createElement("ul");
   fieldDisplay.setAttribute("class", "fieldGroup");
@@ -209,7 +209,7 @@ function drawNext(array, node, rootObj, enumLeaf) {
     const childLi = document.createElement("li");
     childLi.setAttribute("class", "fieldType-alt");
     //check the type to see if it is leaf
-    if (arrayTypes.includes(rootObj.fields[field].returnType)) {
+    if (scalarTypes.includes(rootObj.fields[field].returnType)) {
       childLi.textContent = `${field}: ${rootObj.fields[field].returnType}`;
     } else if (enumLeaf.includes(rootObj.fields[field].returnType)) {
       childLi.textContent = `${field}: ${rootObj.fields[field].returnType}`;
@@ -238,7 +238,7 @@ function drawNext(array, node, rootObj, enumLeaf) {
         const [field, fieldtype] = parent.textContent.replace(" ", '').split(":");
         array.forEach((e) => {
           if (fieldtype === e.name) {
-            drawNext(array, btn, e, enumLeaf);
+            drawNext(array, btn, e, enumLeaf, scalarTypes);
           }
         });
       });

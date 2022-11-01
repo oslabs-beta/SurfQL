@@ -189,12 +189,15 @@ export default function parser(text: string) {
   const enumArr: Array<Enum> = [];
   //declare a input array
   const inputArr: Array<Input> = [];
+  //declare a scale array
+  const scalarArr: Array<String> = [];
 
   //build up the constants
   const typeIndex = 4;
   const inputIndex = 5;
   const interfaceIndex = 9;
   const enumIndex = 4;
+  const scalarIndex = 6;
   
   //declare status for parsing type, interface input
   let parsing = false;
@@ -202,6 +205,8 @@ export default function parser(text: string) {
   let parsingEnum = false;
   //declare status for checking parsing Input
   let parsingInput = false;
+  //declare status for checking parsing Input
+  let parsingScalar = false;
 
 
   let currentArr = 'root';
@@ -228,6 +233,9 @@ export default function parser(text: string) {
       const newInput: Input = new Input(variable);
       inputArr.push(newInput);
       currentArr = 'input';
+    } else if (parsingScalar) {
+      scalarArr.push(variable);
+      parsingScalar = false;
     }
     // curRoot = variable;
   }
@@ -297,10 +305,14 @@ export default function parser(text: string) {
       } else if (cleanline.slice(0, enumIndex) === "enum") {
         parsingEnum = true;
         typeSlicer(enumIndex, cleanline);
+      } else if (cleanline.slice(0, scalarIndex) === "scalar") {
+        console.log(cleanline);
+        parsingScalar = true;
+        typeSlicer(scalarIndex, cleanline);
       }
     };
   });
 
-  console.log(root, queryMutation, enumArr, inputArr);
-  return [root, queryMutation, enumArr, inputArr];
+  console.log(root, queryMutation, enumArr, inputArr, scalarArr);
+  return [root, queryMutation, enumArr, inputArr, scalarArr];
 };
