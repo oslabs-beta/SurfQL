@@ -10,7 +10,7 @@
   "categories": [
     "Other"
   ],
-  "icon": "media/icon.png",
+  "icon": "media/blkicon.png",
   "activationEvents": [
     "*",
     "onCommand:surfql.previewSchema"
