@@ -3,12 +3,14 @@
   "displayName": "SurfQL",
   "description": "Extends the VS Code IDE to auto-fill GraphQL queries.",
   "version": "0.0.1",
+  "publisher": "surfql",
   "engines": {
     "vscode": "^1.70.0"
   },
   "categories": [
     "Other"
   ],
+  "icon": "media/icon.png",
   "activationEvents": [
     "*",
     "onCommand:surfql.previewSchema"
@@ -83,5 +85,9 @@
     "axios": "^0.27.2",
     "graphql": "^16.5.0",
     "vsce": "^2.13.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oslabs-beta/SurfQL.git"
+}
 }
