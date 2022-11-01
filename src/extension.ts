@@ -22,6 +22,7 @@ let disposable: vscode.Disposable;
 
 // This function will only be executed when the extension is activated.
 export async function activate(context: vscode.ExtensionContext) {
+	displayConfigPrompt();
 	// At startup
   console.log('SurfQL is now active 🌊');
 	[ queryEntry, schema, schemaPaths, enumArr ] = await configToSchema(); // Parse schema files from the config file
@@ -246,11 +247,15 @@ function arrToObj(arr: Array<any>) {
  * The config file is used to locate the correct schema files to parse.
  */
 async function configToSchema(): Promise<[any, any, string[], Array<any>]> {
+	// TODO: Checkout this documentation I found:
+	// https://code.visualstudio.com/api/references/vscode-api#WorkspaceConfiguration
+	// It looks like there is a cleaner, built-in way to do this.
+
 	// Attempt to file the SurfQL config file within the user's workspace.
-	const filepath: string | undefined = await vscode.workspace.findFiles('**/surfql.json', '**/node_modules/**', 1).then(([ uri ]: vscode.Uri[]) => {
+	const filepath: string | undefined = await vscode.workspace.findFiles('**/surfql.config.json', '**/node_modules/**', 1).then(([ uri ]: vscode.Uri[]) => {
 		// When no file was found:
 		if (!uri) {
-			createSchemaPrompt(); // Prompt the user
+			displayConfigPrompt(); // Prompt the user
 			return; // Return undefined
 		}
 		// When a config file was found return the file path.
@@ -278,8 +283,45 @@ async function configToSchema(): Promise<[any, any, string[], Array<any>]> {
 	return [queryEntry, schemaObject, [schemaPath], enumArr];
 }
 
-function createSchemaPrompt(): void {
-	vscode.window.showInformationMessage("No surfql.json found");
+function displayConfigPrompt(): void {
+	// TODO: Add a "Learn more" button that will send to a link with documentation
+	// instructions for creating a surfql config file (with an example).
+
+	// Do nothing when the user specified that they no longer want to see this popup.
+	const surfqlConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration();
+	if (surfqlConfig.get<boolean>('surfql.displayConfigPopup') === false) return;
+
+	// Prompt the user to inform them that they can generate a config file, since
+	// no config file was found.
+	vscode.window.showInformationMessage("No SurfQL config found. Would you like to generate one for this workspace?", 'Generate', 'Okay', 'Don\'t show again')
+		.then((userChoice) => {
+			// Do nothing when the prompt popup was closed.
+			if (userChoice === undefined) return;
+
+			// When the user interacted with the popup: Respond accordingly
+			if (userChoice === 'Generate') {
+				// Create a config file for the user automatically in the root directory.
+				const defaultConfig = { schema: "./path-to-your-schema.graphqls" };
+				vscode.workspace.fs.writeFile(
+					vscode.Uri.file(path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, 'surfql.config.json')),
+					Buffer.from(JSON.stringify(defaultConfig, null, 2))
+				).then(() => {
+					// After the file is created, open it so the user can manually update
+					// the schema path to an actual schema file.
+					vscode.workspace.openTextDocument(path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, 'surfql.config.json'))
+						.then((doc) => {
+							vscode.window.showTextDocument(doc);
+							vscode.window.showInformationMessage('The file was created in the root directory. Please update the default schema path within the surfql.config.json file.');
+						});
+				});
+			} else if (userChoice === 'Don\'t show again') {
+				// The user doesn't want to be notified anymore. Adjust the extension
+				// settings to disable this popup.
+				// - The 'true' value updates this config setting globally so that the
+				//   user won't see this popup in any workspace.
+				surfqlConfig.update('surfql.displayConfigPopup', false, true);
+			}
+		});
 	// TODO: Add a message with an "Okay" button that will auto-generate a config
 	//       file for the user (if they press "Okay").
 	// TODO: The file created will be loaded with { "schema": "./your-file-here/graphql" }

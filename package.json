@@ -10,7 +10,7 @@
     "Other"
   ],
   "activationEvents": [
-    "*",
+    "workspaceContains:**/surfql.config.json",
     "onCommand:surfql.previewSchema"
   ],
   "main": "./dist/extension.js",
@@ -25,6 +25,16 @@
         "title": "Preview Schema"
       }
     ],
+    "configuration": {
+      "title": "SurfQL",
+      "properties": {
+        "surfql.displayConfigPopup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Displays a popup to automatically generate a config file."
+        }
+      }
+    },
     "viewsContainers": {
       "activitybar": [
         {
