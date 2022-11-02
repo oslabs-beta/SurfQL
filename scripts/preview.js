@@ -1,10 +1,7 @@
 //document on load
-
-
 document.addEventListener("DOMContentLoaded", () => {
   //get board element
   const board = document.querySelector("#board");
-
   const vscode = acquireVsCodeApi();
   function getSchematext() {
     vscode.postMessage({
@@ -12,7 +9,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
   getSchematext();
-
   const refreshBtn = document.querySelector("#refresh");
   refreshBtn.addEventListener("click", (e) => {
     board.innerHTML = "";
@@ -32,7 +28,6 @@ window.addEventListener("message", (event) => {
     const [schemaArr, queryMutation, enumArr, inputArr, scalarArr, unionArr] = JSON.parse(
       message.text
     );
-    console.log("here it comes", [schemaArr, queryMutation, enumArr, inputArr, scalarArr, unionArr]);
     draw(queryMutation, schemaArr, enumArr, inputArr, scalarArr, unionArr);
     return;
   }
@@ -74,12 +69,10 @@ function draw(qmArr, schemaArr, enumArr, inputArr, scalarArr, unionArr) {
       const tooltip = new bootstrap.Tooltip(btn);
       btn.textContent = `${field}: ${root.fields[field].returnType}`;
       btn.addEventListener("click", function (e) {
-        
         e.stopPropagation();
         const parent = e.target.parentNode;
         //grab typeinfo from parent node.
         const [field, fieldtype] = parent.textContent.replace(" ", "").split(":");
-
         schemaArr.forEach((e) => {
           if (fieldtype === e.name) {
             drawNext(schemaArr, btn, e, enumLeaf, scalarTypes, unionArr); 
@@ -101,7 +94,6 @@ function draw(qmArr, schemaArr, enumArr, inputArr, scalarArr, unionArr) {
     });
     //append rootDisplay to entry
     entry.appendChild(rootDisplay);
-
   });
 
   //Second div to save input type
@@ -136,7 +128,6 @@ function draw(qmArr, schemaArr, enumArr, inputArr, scalarArr, unionArr) {
           const parent = e.target.parentNode;
           //grab typeinfo from parent node.
           const [field, fieldtype] = parent.textContent.replace(" ", "").split(":");
-
           schemaArr.forEach((e) => {
             if (fieldtype === e.name) {
               drawNext(schemaArr, btn, e, enumLeaf, scalarTypes, unionArr); 
@@ -161,9 +152,6 @@ function draw(qmArr, schemaArr, enumArr, inputArr, scalarArr, unionArr) {
     inputBox.appendChild(rootDisplay);
   });
 
-  
-
-
   //Third div to save Enum type
   const enumBox = document.createElement("div");
   enumBox.setAttribute("class", "container");
@@ -173,22 +161,22 @@ function draw(qmArr, schemaArr, enumArr, inputArr, scalarArr, unionArr) {
   category3.innerHTML = "Enumeration Types";
   enumBox.appendChild(category3);
   enumArr.forEach(el => {
+    console.log('enum', el);
     const enumD = document.createElement('li');
     enumBox.appendChild(enumD);
     const enumDisplay = document.createElement('a');
     enumD.appendChild(enumDisplay);
     enumDisplay.setAttribute('data-bs-toggle', 'collapse');
+    enumDisplay.setAttribute('href', `#E${el.name}`);
     enumDisplay.setAttribute('style', "color:rgb(170,170,170");
     enumDisplay.setAttribute('class', "notleaf");
     enumDisplay.innerHTML = el.name;
     const enumChoices = document.createElement('div');
     enumChoices.setAttribute('id', `E${el.name}`);
     enumChoices.setAttribute('class', 'collapse');
-    enumChoices.innerHTML = `${el.value.join('   ')}`;
+    enumChoices.innerHTML = `${el.value.join(',')}`;
     enumD.appendChild(enumChoices);
   });
-
-  console.log(enumBox);
   return;
 }
 
@@ -198,7 +186,6 @@ function drawNext(array, node, rootObj, enumLeaf, scalarTypes, unionArr) {
   unionArr.forEach(el => {
     unionObj[el.name] = el.options;
   });
-  console.log('lookhere', unionObj);
   //create field display
   const fieldDisplay = document.createElement("ul");
   fieldDisplay.setAttribute("class", "fieldGroup");
