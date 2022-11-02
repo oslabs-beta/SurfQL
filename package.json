@@ -32,6 +32,11 @@
           "type": "boolean",
           "default": true,
           "description": "Displays a popup to automatically generate a config file."
+        },
+        "surfql.displayInvalidConfigPathPopup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Displays a popup when the schema path is invalid in the config file."
         }
       }
     },

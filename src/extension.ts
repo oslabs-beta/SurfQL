@@ -24,7 +24,10 @@ let disposable: vscode.Disposable;
 export async function activate(context: vscode.ExtensionContext) {
 	// At startup
   console.log('SurfQL is now active 🌊');
-	[ queryEntry, schema, schemaPaths, enumArr ] = await configToSchema(); // Parse schema files from the config file
+	const configResult = await configToSchema(); // Parse schema files from the config file
+	if (configResult) { // If it didn't error out in the process then assign the global values
+		[ queryEntry, schema, schemaPaths, enumArr ] = configResult;
+	}
 	console.log('schema', schema);
 	console.log('queryEntry', queryEntry);
 	enumObj = enumToObj(enumArr);
@@ -229,7 +232,7 @@ function enumToObj(arr: Array<any> | null) {
 	const enumObj = {};
     arr.forEach(e => {
 		enumObj[e.name] = e.value;
-	})
+	});
     return enumObj;
 };
 
@@ -245,7 +248,7 @@ function arrToObj(arr: Array<any>) {
  * Searches the root directory of the user's workspace for a schema config file.
  * The config file is used to locate the correct schema files to parse.
  */
-async function configToSchema(): Promise<[any, any, string[], Array<any>]> {
+async function configToSchema(): Promise<[any, any, string[], Array<any>] | void> {
 	// TODO: Checkout this documentation I found:
 	// https://code.visualstudio.com/api/references/vscode-api#WorkspaceConfiguration
 	// It looks like there is a cleaner, built-in way to do this.
@@ -273,13 +276,18 @@ async function configToSchema(): Promise<[any, any, string[], Array<any>]> {
 	const config = JSON.parse(configText);
 	const schemaPath = path.join(filepath, '../', config.schema);
 
-	// Read the schema file and parse it into a usable object.
-	const schemaText = fs.readFileSync(schemaPath, "utf8");
-	const [objectArr, queryMutation, enumArr, inputArr, scalarArr] = parser(schemaText);
-	const queryEntry = arrToObj(queryMutation);
-	const schemaObject = arrToObj(objectArr);
-	// const usableSchemaObj = createNestedObj(schemaObj);
-	return [queryEntry, schemaObject, [schemaPath], enumArr];
+	try {
+		// Read the schema file and parse it into a usable object.
+		const schemaText = fs.readFileSync(schemaPath, "utf8");
+		const [objectArr, queryMutation, enumArr, inputArr, scalarArr] = parser(schemaText);
+		const queryEntry = arrToObj(queryMutation);
+		const schemaObject = arrToObj(objectArr);
+		return [queryEntry, schemaObject, [schemaPath], enumArr];
+	} catch {
+		// Inform the user that the schema path in the config file is invalid.
+		displayInvalidConfigPathPrompt();
+		// Nothing is returned.
+	}
 }
 
 function displayConfigPrompt(): void {
@@ -297,7 +305,7 @@ function displayConfigPrompt(): void {
 			// Do nothing when the prompt popup was closed.
 			if (userChoice === undefined) return;
 
-			// When the user interacted with the popup: Respond accordingly
+			// When the user interacted with the popup: Respond accordingly.
 			if (userChoice === 'Generate') {
 				// Create a config file for the user automatically in the root directory.
 				const defaultConfig = { schema: "./path-to-your-schema.graphqls" };
@@ -321,16 +329,30 @@ function displayConfigPrompt(): void {
 				surfqlConfig.update('surfql.displayConfigPopup', false, true);
 			}
 		});
-	// TODO: Add a message with an "Okay" button that will auto-generate a config
-	//       file for the user (if they press "Okay").
-	// TODO: The file created will be loaded with { "schema": "./your-file-here/graphql" }
 }
 
-//Out-of-scope features pre-presentation
-// Live-share compatibility (usability)
-// ability to detect ONLY graphql query vs parsing the whole document (efficiency)
-// splash site 
-// vscode publication
-// check to see if the cursor is even within a query
-// When the suggestion is another nested object show brackets. But when its an endpoint don't show brackets.
+function displayInvalidConfigPathPrompt(): void {
+	// Do nothing when the user specified that they no longer want to see this popup.
+	const surfqlConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration();
+	if (surfqlConfig.get<boolean>('surfql.displayInvalidConfigPathPopup') === false) return;
 
+	// Inform the user that the schema path was invalid.
+	vscode.window.showInformationMessage('Invalid schema path in the surfql.config.json', 'View file', 'Okay', 'Don\'t show again')
+		.then((userChoice) => {
+			// Do nothing when the prompt popup was closed.
+			if (userChoice === undefined) return;
+
+			// When the user interacted with the popup: Respond accordingly.
+			if (userChoice === 'View file') {
+				// Open the file so the user can manually update the schema path.
+				vscode.workspace.openTextDocument(path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, 'surfql.config.json'))
+					.then((doc) => vscode.window.showTextDocument(doc));
+			} else if (userChoice === 'Don\'t show again') {
+				// The user doesn't want to be notified anymore. Adjust the extension
+				// settings to disable this popup.
+				// - The 'true' value updates this config setting globally so that the
+				//   user won't see this popup in any workspace.
+				surfqlConfig.update('surfql.displayInvalidConfigPathPopup', false, true);
+			}
+		});
+}
