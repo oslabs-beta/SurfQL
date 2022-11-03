@@ -93,4 +93,4 @@ Don't forget to give the project a star! Thanks again!
 
 Email: [surfqlapp@gmail.com](surfqlapp@gmail.com)
 
-Website: [http://surfql-static-site.s3-website-us-east-1.amazonaws.com/](http://surfql-static-site.s3-website-us-east-1.amazonaws.com/)
+Website: [http://www.surfql.com/](http://www.surfql.com/)
