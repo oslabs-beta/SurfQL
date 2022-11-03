@@ -93,12 +93,12 @@ export async function activate(context: vscode.ExtensionContext) {
 				panel.webview.onDidReceiveMessage((message) => {
 					if (message.command === "get schema text") {
 						let schemaText = fs.readFileSync(schemaPath, "utf8");
-						const [objectArr, queryMutation, enumArr, inputArr, scalarArr] = parser(schemaText);
+						const [objectArr, queryMutation, enumArr, inputArr, scalarArr, unionArr] = parser(schemaText);
 						schema = arrToObj(objectArr);
 						queryEntry = arrToObj(queryMutation);
 						panel.webview.postMessage({
 							command: "sendSchemaInfo",
-							text: JSON.stringify([objectArr, queryMutation, enumArr, inputArr, scalarArr]),
+							text: JSON.stringify([objectArr, queryMutation, enumArr, inputArr, scalarArr, unionArr]),
 						});
 					}
 					console.log('the schema is', schema);
@@ -275,7 +275,7 @@ async function configToSchema(): Promise<[any, any, string[], Array<any>]> {
 
 	// Read the schema file and parse it into a usable object.
 	const schemaText = fs.readFileSync(schemaPath, "utf8");
-	const [objectArr, queryMutation, enumArr, inputArr, scalarArr] = parser(schemaText);
+	const [objectArr, queryMutation, enumArr, inputArr, scalarArr, unionArr] = parser(schemaText);
 	const queryEntry = arrToObj(queryMutation);
 	const schemaObject = arrToObj(objectArr);
 	// const usableSchemaObj = createNestedObj(schemaObj);
