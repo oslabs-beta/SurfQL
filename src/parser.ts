@@ -1,21 +1,3 @@
-// Parser V1 workflow:
-// 1. Use node fs to read a schema file, which returns the file in text string.
-// 2. Pass the string into the parser module and it will return an array of root objects.
-// The rootObject.name == graphql schema type name.
-// The rootObject.fields is an object which has all info for the fields of this type (as keys)
-// and data type for the field (as value for the key).
-
-//Parser V2:
-//able to skip front lines
-//return field info.
-//return an object for autocomplete and an array for display (can definitely simplify)
-
-//Parser V3:
-//Takes in Mutation and Query type.
-//Handling Interface
-
-//Parser V4:
-//Takes Argument
 
 class Root { //Class for regular, query, mutation, interface type
   name: string;
@@ -66,6 +48,14 @@ class Input { //class for input type
   }
 };
 
+class Union {
+  name: String;
+  options: Array<any>;
+  constructor(val: String, optionArray: Array<any>) {
+    this.name = val;
+    this.options = optionArray;
+  }
+}
 
 //build root Object, nameBuilder works for type and interface
 function nameBuilder(string: string): [string, string | null] {
@@ -189,12 +179,18 @@ export default function parser(text: string) {
   const enumArr: Array<Enum> = [];
   //declare a input array
   const inputArr: Array<Input> = [];
+  //declare a scale array
+  const scalarArr: Array<String> = [];
+  //declare a union array
+  const unionArr: Array<Union> = [];
 
   //build up the constants
   const typeIndex = 4;
   const inputIndex = 5;
   const interfaceIndex = 9;
   const enumIndex = 4;
+  const scalarIndex = 6;
+  const unionIndex = 5;
   
   //declare status for parsing type, interface input
   let parsing = false;
@@ -202,13 +198,18 @@ export default function parser(text: string) {
   let parsingEnum = false;
   //declare status for checking parsing Input
   let parsingInput = false;
+  //declare status for checking parsing Scalar
+  let parsingScalar = false;
+  //declare status for checking parsing Union
+  let parsingUnion = false;
 
 
   let currentArr = 'root';
   //when parsing initialized, build the right Object and push to the right array
   function typeSlicer(strEnd: number, cleanline: string) {
-    const [variable, interfaceVal] = nameBuilder(cleanline.slice(strEnd));
+    // const [variable, interfaceVal] = nameBuilder(cleanline.slice(strEnd));
     if (parsing) {
+      const [variable, interfaceVal] = nameBuilder(cleanline.slice(strEnd));
       const newRoot: Root = new Root(variable, interfaceVal);
       if (variable.toLowerCase() === 'query') {
         queryMutation.push(newRoot);
@@ -221,17 +222,33 @@ export default function parser(text: string) {
         currentArr = 'root';
       }
     } else if (parsingEnum) {
+      const [variable, interfaceVal] = nameBuilder(cleanline.slice(strEnd));
       const newEnum: Enum = new Enum(variable);
       enumArr.push(newEnum);
       currentArr = 'enum';
     } else if (parsingInput) {
+      const [variable, interfaceVal] = nameBuilder(cleanline.slice(strEnd));
       const newInput: Input = new Input(variable);
       inputArr.push(newInput);
       currentArr = 'input';
-    }
-    // curRoot = variable;
+    } else if (parsingScalar) {
+      const [variable, interfaceVal] = nameBuilder(cleanline.slice(strEnd));
+      scalarArr.push(variable);
+      parsingScalar = false;
+    } else if (parsingUnion) {
+      console.log('union line', cleanline.slice(strEnd));
+      const [unionName, optionArray] = unionCreator(cleanline.slice(strEnd));
+      const newUnion = new Union(unionName.trim(), optionArray);
+      unionArr.push(newUnion);
+      parsingUnion = false;
+    } 
   }
 
+  function unionCreator(str: String): [String, Array<any>] {
+    const [unionName, options] = str.replace(' ', '').split('=');
+    const optionArray = options.split('|').map(el => el.trim());
+    return [unionName, optionArray];
+  }
   
   //start parsing--->//
   const arr = text.split(/\r?\n/);
@@ -297,10 +314,17 @@ export default function parser(text: string) {
       } else if (cleanline.slice(0, enumIndex) === "enum") {
         parsingEnum = true;
         typeSlicer(enumIndex, cleanline);
+      } else if (cleanline.slice(0, scalarIndex) === "scalar") {
+        parsingScalar = true;
+        typeSlicer(scalarIndex, cleanline);
+      } else if (cleanline.slice(0, unionIndex) === "union") {
+        console.log(cleanline);
+        parsingUnion = true;
+        typeSlicer(unionIndex, cleanline);
       }
     };
   });
 
-  console.log(root, queryMutation, enumArr, inputArr);
-  return [root, queryMutation, enumArr, inputArr];
+  console.log(root, queryMutation, enumArr, inputArr, scalarArr, unionArr);
+  return [root, queryMutation, enumArr, inputArr, scalarArr, unionArr];
 };
