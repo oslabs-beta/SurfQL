@@ -1,6 +1,6 @@
 ## SurfQL
 
-SurfQL A VSCode extension to create way in the editor  to display the queries the user defines.
+SurfQL is a VSCode developer tool that displays user defined GraphQL queries in a visualizer and allows for autocompletion using Intellisense.
 
 ## Instructions
 
