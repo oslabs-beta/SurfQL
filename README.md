@@ -8,7 +8,7 @@ After downloading the SurfQL extension
 
 1. Click the icon on your toolbar
 2. Upload your schema
-3. The visualizer tree with be displayed on the right
+3. The visualizer tree with be displayed on the right of your IDE.
 4. After typing a query such as gql"query{}" it will begin auto-suggesting
 5. Click the field you want and continue your query!
 
