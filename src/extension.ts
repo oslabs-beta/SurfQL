@@ -77,7 +77,7 @@ export async function activate(context: vscode.ExtensionContext) {
 				);
 
 				const logoPath = vscode.Uri.file(
-					path.join(context.extensionPath, "media", "icon.svg")
+					path.join(context.extensionPath, "media", "icon.png")
 				);
 
 				//add the previewjs to panel as a accessible Uri
