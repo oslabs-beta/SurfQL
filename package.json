@@ -10,7 +10,7 @@
   "categories": [
     "Other"
   ],
-  "icon": "media/blkicon.png",
+  "icon": "media/icon.png",
   "activationEvents": [
     "workspaceContains:**/surfql.config.json",
     "onCommand:surfql.previewSchema"
