@@ -1,33 +1,40 @@
 ## SurfQL
 
-SurfQL is a VSCode developer tool that displays user defined GraphQL queries in a visualizer and allows for autocompletion using Intellisense.
+SurfQL is a VS Code developer tool that displays user defined GraphQL schema in a visualizer and allows for autocompletion for your query using Intellisense.
 
 ## Instructions
 
-After downloading the SurfQL extension
+Step 1. Go to VS Code marketplace and download SurfQL.
+Step 2. Once installed, the first time you open your project, follow the pop-up message to create a surfql.config.json file.
+Step 3. Click the Q logo that appears on your side bar, and click on the View Schemas Button to initiate the visualizer. It will open a webView panel with your visualization of the schema hierarchy. If you don't have a config file, you can also mannually select your schema file following the pop-up file selector manually.
+(Currently SurfQL supports parsing schema files written with Apollo Server library. Support for more libraries is under development.)
+Step 4. Beyond visualization: Back to your project, once you begin building up your query in your project file, SurfQL will begin parsing your query and suggesting the available fields to complete your query. 
 
-1. Click the icon on your toolbar
-2. Upload your schema
-3. The visualizer tree with be displayed on the right of your IDE.
-4. After typing a query such as gql"query{}" it will begin auto-suggesting
-5. Click the field you want and continue your query!
 
 ## Built With
 
 <ul>
   <li>
-     <a href="Next.js](https://nextjs.org/"> GraphQL</a>
-  </li>
-  <li>
-    <a href="https://reactjs.org/"> React</a>
+     <a href="https://www.typescriptlang.org/"> Typescript </a>
   </li>
   <li>
     <a href="https://code.visualstudio.com/api"> VSCode Extension API </a>
   </li>
   <li>
-     <a href="https://www.typescriptlang.org/"> Typescript </a>
+    <a href="https://getbootstrap.com/docs/5.0/getting-started/introduction/"> Bootstrap V5.0</a>
   </li>
-
+  <li>
+    <a href="https://www.javascript.com/"> JavaScript</a>
+  </li>
+</ul>
+## Referencing
+<ul>
+  <li>
+     <a href="https://graphql.org/"> GraphQL</a>
+  </li>
+  <li>
+     <a href="https://www.apollographql.com/docs/apollo-server/"> Apollo</a>
+  </li>
 </ul>
 
 ## Extension Settings
@@ -38,7 +45,8 @@ Make sure to include a configuration file named `surfql.config.json`
 
 ```json
 {
-  "schema": "./<path>.<graphql/graphqls/js>"
+  "schema": "./<path to your graphql schema definition file>",
+  "serverLibrary" : "Apollo Server"
 }
 ```
 
@@ -46,16 +54,17 @@ Make sure to include a configuration file named `surfql.config.json`
 
 ## Roadmap
 
-- [ ] Create a Postman type of panel that sits in VSCode
+- [ ] Create schema file parsing support for different libaries, eg. GraphQL.js, graphql-yoga, etc.
+- [ ] Create a Postman type of API that sits in VSCode
   - [ ] Create input fields for requests on the webview panel
   - [ ] Find a way to access to the developers DB or AP and return the data
-- [ ] Make the parser handle schemas created
+
 
 <!-- STEPS TO CONTRIBUTE -->
 
 ## Steps to Contribute
 
-Contributions really make the open source community an amazing place to learn, inspire, and create. Any contributions made to surfQL are ** appreciated**.
+Contributions really make the open source community an amazing place to learn, inspire, and create. Any contributions made to surfQL are **appreciated**.
 
 If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
 Don't forget to give the project a star! Thanks again!
@@ -72,10 +81,9 @@ Don't forget to give the project a star! Thanks again!
 ### Making Changes
 
 1. Make your changes!
-2. Open /surfQL/src/extension.ts and save any changes you made
-3. Re-compile and re-build your extension using the command line: `npm run compile` & `npm run build`
-4. Press F5. A new VSCode window should open. This is your debugging environment!
-5. Repeat step 3 and refresh your debugging environment to test further changes
+2. Re-compile and re-build your extension using the command line: `npm run compile` & `npm run build`
+3. Press F5 (or use the VS Code Debug console) A new VS Code window should open in development mode. This is your debugging environment!
+4. Repeat step 3 and refresh your debugging environment to test further changes.
 
 <!-- THE SURFQL TEAM -->
 
@@ -83,7 +91,7 @@ Don't forget to give the project a star! Thanks again!
 
 - Ethan McRae [LinkedIn](https://www.linkedin.com/in/ethanmcrae/) | [Github](https://github.com/ethanmcrae)
 - Tristan Onfroy [LinkedIn](https://www.linkedin.com/in/tristan-onfroy/) | [Github](https://github.com/TristanO45)
-- Joy Zhang [LinkedIn](https://www.linkedin.com/in/yanqi-zhang-72a41b50/) | [Github](https://github.com/jzhang2018p)
+- Yanqi Joy Zhang [LinkedIn](https://www.linkedin.com/in/yanqi-joy-zhang-72a41b50/) | [Github](https://github.com/jzhang2018p)
 - Steve Benner [LinkedIn](https://www.linkedin.com/in/stephenbenner/) | [Github](https://github.com/CodeBrewLatte)
 - Dwayne Neckles [LinkedIn](https://www.linkedin.com/in/dneckles/) | [Github](https://github.com/dnecklesportfolio)
 
@@ -92,5 +100,4 @@ Don't forget to give the project a star! Thanks again!
 ## Contact Us
 
 Email: [surfqlapp@gmail.com](surfqlapp@gmail.com)
-
 Website: [http://www.surfql.com/](http://www.surfql.com/)
