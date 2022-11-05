@@ -4,11 +4,11 @@ SurfQL is a VS Code developer tool that displays user defined GraphQL schema in 
 
 ## Instructions
 
-Step 1. Go to VS Code marketplace and download SurfQL.
-Step 2. Once installed, the first time you open your project, follow the pop-up message to create a surfql.config.json file.
-Step 3. Click the Q logo that appears on your side bar, and click on the View Schemas Button to initiate the visualizer. It will open a webView panel with your visualization of the schema hierarchy. If you don't have a config file, you can also mannually select your schema file following the pop-up file selector manually.
+1. Go to VS Code marketplace and download SurfQL.
+2. Once installed, the first time you open your project, follow the pop-up message to create a surfql.config.json file.
+3. Click the Q logo that appears on your side bar, and click on the View Schemas Button to initiate the visualizer. It will open a webView panel with your visualization of the schema hierarchy. If you don't have a config file, you can also mannually select your schema file following the pop-up file selector manually.
 (Currently SurfQL supports parsing schema files written with Apollo Server library. Support for more libraries is under development.)
-Step 4. Beyond visualization: Back to your project, once you begin building up your query in your project file, SurfQL will begin parsing your query and suggesting the available fields to complete your query. 
+4. Beyond visualization: Back to your project, once you begin building up your query in your project file, SurfQL will begin parsing your query and suggesting the available fields to complete your query. 
 
 
 ## Built With
@@ -27,7 +27,7 @@ Step 4. Beyond visualization: Back to your project, once you begin building up y
     <a href="https://www.javascript.com/"> JavaScript</a>
   </li>
 </ul>
-## Referencing
+Referencing
 <ul>
   <li>
      <a href="https://graphql.org/"> GraphQL</a>
@@ -55,9 +55,10 @@ Make sure to include a configuration file named `surfql.config.json`
 ## Roadmap
 
 - [ ] Create schema file parsing support for different libaries, eg. GraphQL.js, graphql-yoga, etc.
-- [ ] Create a Postman type of API that sits in VSCode
+- [ ] Create a Postman type API that sits in VSCode
   - [ ] Create input fields for requests on the webview panel
-  - [ ] Find a way to access to the developers DB or AP and return the data
+  - [ ] Connect to the GraphQL API to return the data
+  - [ ] Display the data in the panel
 
 
 <!-- STEPS TO CONTRIBUTE -->
