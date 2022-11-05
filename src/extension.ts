@@ -77,7 +77,7 @@ export async function activate(context: vscode.ExtensionContext) {
 				);
 
 				const logoPath = vscode.Uri.file(
-					path.join(context.extensionPath, "media", "icon.svg")
+					path.join(context.extensionPath, "media", "icon.png")
 				);
 
 				//add the previewjs to panel as a accessible Uri
@@ -308,7 +308,10 @@ function displayConfigPrompt(): void {
 			// When the user interacted with the popup: Respond accordingly.
 			if (userChoice === 'Generate') {
 				// Create a config file for the user automatically in the root directory.
-				const defaultConfig = { schema: "./path-to-your-schema.graphqls" };
+				const defaultConfig = { 
+					schema: "./path-to-your-schema-file",
+					serverLibrary: "Apollo Server" // Currently we only support parsing Apollo Server Libray.
+				};
 				vscode.workspace.fs.writeFile(
 					vscode.Uri.file(path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, 'surfql.config.json')),
 					Buffer.from(JSON.stringify(defaultConfig, null, 2))
