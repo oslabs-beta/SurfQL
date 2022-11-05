@@ -2,6 +2,12 @@
 
 SurfQL is a VS Code developer tool that displays user defined GraphQL schema in a visualizer and allows for autocompletion for your query using Intellisense.
 
+## Functionality
+Schema Visualization
+![Sample](visualization.gif)
+Code Auto-completion
+![Sample](autocompletion.gif)
+
 ## Instructions
 
 1. Go to VS Code marketplace and download SurfQL.
