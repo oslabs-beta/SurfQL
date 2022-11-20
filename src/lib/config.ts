@@ -14,7 +14,7 @@ import * as path from 'path';
 	// https://code.visualstudio.com/api/references/vscode-api#WorkspaceConfiguration
 	// It looks like there is a cleaner, built-in way to do this.
 
-	// Attempt to file the SurfQL config file within the user's workspace.
+	// Attempt to find the SurfQL config file within the user's workspace.
 	const filepath: string | undefined = await workspace.findFiles('**/surfql.config.json', '**/node_modules/**', 1).then(([ uri ]: Uri[]) => {
 		// When no file was found:
 		if (!uri) {
@@ -68,23 +68,7 @@ function displayConfigPrompt(): void {
 
 			// When the user interacted with the popup: Respond accordingly.
 			if (userChoice === 'Generate') {
-				// Create a config file for the user automatically in the root directory.
-				const defaultConfig = { 
-					schema: "./path-to-your-schema-file",
-					serverLibrary: "Apollo Server" // Currently we only support parsing Apollo Server Libray.
-				};
-				workspace.fs.writeFile(
-					Uri.file(path.join(workspace.workspaceFolders[0].uri.fsPath, 'surfql.config.json')),
-					Buffer.from(JSON.stringify(defaultConfig, null, 2))
-				).then(() => {
-					// After the file is created, open it so the user can manually update
-					// the schema path to an actual schema file.
-					workspace.openTextDocument(path.join(workspace.workspaceFolders[0].uri.fsPath, 'surfql.config.json'))
-						.then((doc) => {
-							window.showTextDocument(doc);
-							window.showInformationMessage('The file was created in the root directory. Please update the default schema path within the surfql.config.json file.');
-						});
-				});
+				generateConfigFile();
 			} else if (userChoice === 'Don\'t show again') {
 				// The user doesn't want to be notified anymore. Adjust the extension
 				// settings to disable this popup.
@@ -119,4 +103,41 @@ function displayInvalidConfigPathPrompt(): void {
 				surfqlConfig.update('surfql.displayInvalidConfigPathPopup', false, true);
 			}
 		});
+}
+
+/**
+ * Create a config file for the user automatically in the root directory
+ */
+export async function generateConfigFile(): Promise<void> {
+  // If the config file is already there then just open it instead of overwriting
+  // its contents. Otherwise, generate a template config file.
+	workspace.findFiles('**/surfql.config.json', '**/node_modules/**', 1).then(([ uri ]: Uri[]) => {
+    if (uri) {
+      // A SurfQL config file has been found. Let's open it for the user.
+      workspace.openTextDocument(uri.fsPath)
+        .then((doc) => {
+          window.showTextDocument(doc);
+          window.showInformationMessage('Opened the previously created SurfQL config. No changes were made.');
+        });
+    }
+		else {
+      // Generate a new config file since one hasn't been created in this directory.
+      const defaultConfig = { 
+        schema: "./path-to-your-schema-file",
+        serverLibrary: "Apollo Server" // Currently we only support parsing Apollo Server Libray.
+      };
+      workspace.fs.writeFile(
+        Uri.file(path.join(workspace.workspaceFolders[0].uri.fsPath, 'surfql.config.json')),
+        Buffer.from(JSON.stringify(defaultConfig, null, 2))
+      ).then(() => {
+        // After the file is created, open it so the user can manually update
+        // the schema path to an actual schema file.
+        workspace.openTextDocument(path.join(workspace.workspaceFolders[0].uri.fsPath, 'surfql.config.json'))
+          .then((doc) => {
+            window.showTextDocument(doc);
+            window.showInformationMessage('The file was created in the root directory. Please update the default schema path within the surfql.config.json file.');
+          });
+      });
+		}
+	});
 }

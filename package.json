@@ -25,6 +25,10 @@
       {
         "command": "surfql.previewSchema",
         "title": "Preview Schema"
+      },
+      {
+        "command": "surfql.generateConfigFile",
+        "title": "Generate SurfQL Config Template"
       }
     ],
     "configuration": {
@@ -64,7 +68,7 @@
     "viewsWelcome": [
       {
         "view": "surfql",
-        "contents": "SurfQL Visualizer\n[View Schemas](command:surfql.previewSchema)"
+        "contents": "[View Schemas](command:surfql.previewSchema)\n[Generate Config File](command:surfql.generateConfigFile)"
       }
     ]
   },

@@ -10,7 +10,7 @@ import * as fs from 'fs';
 import parser from "./parser";
 import { offerSuggestions, parseDocumentQuery, fixBadHistoryFormatting,
 	historyToObject, isolateCursor, getSuggestions } from "./lib/suggestions";
-import { configToSchema } from './lib/config';
+import { configToSchema, generateConfigFile } from './lib/config';
 import { Schema, QueryEntry } from './lib/models';
 
 let schema: Schema;
@@ -33,8 +33,14 @@ export async function activate(context: vscode.ExtensionContext) {
 	console.log('queryEntry', queryEntry);
 	enumObj = enumToObj(enumArr);
 
+	// Automatically generate a config file template.
+	const configCommand = vscode.commands.registerCommand(
+		'surfql.generateConfigFile',
+		generateConfigFile
+	);
+
   // Creates a popup with a schema tree visualizer.
-  const previewSchema = vscode.commands.registerCommand(
+  const previewSchemaCommand = vscode.commands.registerCommand(
     "surfql.previewSchema",
     async () => {
 			// If no schema path was found from a config file: Open a file selector
@@ -112,8 +118,9 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 	
   );
-
-  context.subscriptions.push(previewSchema);
+	
+	// Register command functionality to the user's VS Code application.
+  context.subscriptions.push(previewSchemaCommand, configCommand);
 
 	const hoverProvider: vscode.Disposable = vscode.languages.registerHoverProvider(
 		'javascript', 
