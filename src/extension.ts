@@ -139,6 +139,9 @@ export async function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
+		// Dispose of the old suggestion.
+		if (disposable) disposable.dispose();
+
 		const cursorY: number = e.contentChanges[0].range.start.line; // Line number
 		const cursorX: number = e.contentChanges[0].range.start.character; // Column
 		// Trying to test what data can inform us in how to format the auto complete
@@ -154,6 +157,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		// Stimulate spacing around brackets/parentheses for easier parsing.
 		const formattedHistoryArray: string[] = fixBadHistoryFormatting(messyHistoryArray);
 		console.log('Formatted history array:', formattedHistoryArray);
+		// Attempt to validate a query near the cursor.
 		// Parse history array into an object.
 		const historyObject = historyToObject(formattedHistoryArray);
 		console.log('COMPLETE SCHEMA:', historyObject);
@@ -164,8 +168,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		const suggestions = getSuggestions(historyObject, schema, queryEntry);
 		console.log('SUGGESTIONS:', suggestions);
 		
-		// Dispose of the old suggestion.
-		if (disposable) disposable.dispose();
 		// Create the CompletionItems.
 		disposable = vscode.languages.registerCompletionItemProvider(
 			'javascript',
