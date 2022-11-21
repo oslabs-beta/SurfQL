@@ -10,7 +10,7 @@ import * as fs from 'fs';
 import parser from "./parser";
 import { offerSuggestions, parseDocumentQuery, fixBadHistoryFormatting,
 	historyToObject, isolateCursor, getSuggestions } from "./lib/suggestions";
-import { configToSchema, generateConfigFile } from './lib/config';
+import { configToSchema, generateConfigFile, configListener } from './lib/config';
 import { Schema, QueryEntry } from './lib/models';
 
 let schema: Schema;
@@ -120,7 +120,7 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 	
 	// Register command functionality to the user's VS Code application.
-  context.subscriptions.push(previewSchemaCommand, configCommand);
+  context.subscriptions.push(previewSchemaCommand, configCommand, configListener());
 
 	const hoverProvider: vscode.Disposable = vscode.languages.registerHoverProvider(
 		'javascript', 

@@ -1,5 +1,5 @@
 /* eslint-disable curly */
-import { workspace, Uri, WorkspaceConfiguration, window } from 'vscode';
+import { workspace, Uri, WorkspaceConfiguration, window, Disposable } from 'vscode';
 import parser from '../parser';
 import { arrToObj } from '../extension';
 import * as fs from 'fs';
@@ -22,7 +22,6 @@ import * as path from 'path';
 			return; // Return undefined
 		}
 		// When a config file was found return the file path.
-		console.log('config path ->', uri.path);
 		return uri.path;
 	});
 
@@ -140,4 +139,22 @@ export async function generateConfigFile(): Promise<void> {
       });
 		}
 	});
+}
+
+/**
+ * Event listener logic to reprocess the schema parser upon config file updates
+ * @returns A disposable that should be subscribed
+ */
+export function configListener(): Disposable {
+  return workspace.onDidSaveTextDocument((document) => {
+    workspace.findFiles('**/surfql.config.json', '**/node_modules/**', 1).then(([ uri ]: Uri[]) => {
+      // Exit early when no config file was found.
+      if (!uri) return;
+      // Because the config file was updated - the schema should be reprocessed.
+      if (document.fileName === uri.fsPath) {
+        console.log('Updated');
+        configToSchema();
+      }
+    });
+  });
 }
