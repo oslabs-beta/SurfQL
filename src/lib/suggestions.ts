@@ -394,7 +394,6 @@ function findBackTick(history: string[], direction: 1 | -1, limit: number, docum
             line = document.lineAt(lineNumber).text;
             // If we hit the end of our file exit early
             if (lineNumber === document.lineCount) {
-                console.log({lineNumber, total: document.lineCount});
                 console.log('Hit EOF without finding the backtick. Direction:', direction);
                 return [];
             }

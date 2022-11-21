@@ -10,7 +10,7 @@ import * as fs from 'fs';
 import parser from "./parser";
 import { offerSuggestions, parseDocumentQuery, fixBadHistoryFormatting,
 	historyToObject, isolateCursor, getSuggestions } from "./lib/suggestions";
-import { configToSchema, generateConfigFile, configListener } from './lib/config';
+import { configToSchema, generateConfigFile } from './lib/config';
 import { Schema, QueryEntry } from './lib/models';
 
 let schema: Schema;
@@ -25,13 +25,13 @@ let disposable: vscode.Disposable;
 export async function activate(context: vscode.ExtensionContext) {
 	// At startup
   console.log('SurfQL is now active 🌊');
-	const configResult = await configToSchema(); // Parse schema files from the config file
+
+	// Parse schema files that are referenced in the config file.
+	const configResult = await configToSchema();
 	if (configResult) { // If it didn't error out in the process then assign the global values
 		[ queryEntry, schema, schemaPaths, enumArr ] = configResult;
+		enumObj = enumToObj(enumArr);
 	}
-	console.log('schema', schema);
-	console.log('queryEntry', queryEntry);
-	enumObj = enumToObj(enumArr);
 
 	// Automatically generate a config file template.
 	const configCommand = vscode.commands.registerCommand(
@@ -56,7 +56,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
 				// Update the schema path.
 				await vscode.window.showOpenDialog(options).then((fileUri) => {
-					console.log("file Uri -> ", fileUri);
 					if (fileUri && fileUri[0]) {
 						schemaPaths = [fileUri[0].fsPath];
 					}
@@ -111,7 +110,7 @@ export async function activate(context: vscode.ExtensionContext) {
 							text: JSON.stringify([objectArr, queryMutation, enumArr, inputArr, scalarArr, unionArr]),
 						});
 					}
-					console.log('the schema is', schema);
+					// console.log('the schema is', schema);
 					return;
 				});
 			}
@@ -120,7 +119,7 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 	
 	// Register command functionality to the user's VS Code application.
-  context.subscriptions.push(previewSchemaCommand, configCommand, configListener());
+  context.subscriptions.push(previewSchemaCommand, configCommand);
 
 	const hoverProvider: vscode.Disposable = vscode.languages.registerHoverProvider(
 		'javascript', 
@@ -139,7 +138,9 @@ export async function activate(context: vscode.ExtensionContext) {
     );
 	context.subscriptions.push(hoverProvider);
 
-	// EVENT: On every document change: ...
+	/**
+	 * Event listener logic to respond to document changes
+	 */
 	vscode.workspace.onDidChangeTextDocument((e) => {
 		// Exit early when no schema has been loaded.
 		if (!schema) {
@@ -151,26 +152,26 @@ export async function activate(context: vscode.ExtensionContext) {
 		const cursorX: number = e.contentChanges[0].range.start.character; // Column
 		// Trying to test what data can inform us in how to format the auto complete
 		// - Add a new line (before and after) (and indent) or not?
-		console.log('\n\nrow', cursorY, 'column', cursorX);
-		console.log('Current line:', e.document.lineAt(cursorY).text);
-		console.log('Changes:', e.contentChanges.map(x => x.text));
-		console.log('Change had new line:', e.contentChanges[0].text.includes('\n'));
+		// console.log('\n\nrow', cursorY, 'column', cursorX);
+		// console.log('Current line:', e.document.lineAt(cursorY).text);
+		// console.log('Changes:', e.contentChanges.map(x => x.text));
+		// console.log('Change had new line:', e.contentChanges[0].text.includes('\n'));
 
 		// Parse the document's current query into an array.
 		const messyHistoryArray = parseDocumentQuery(cursorY, cursorX, e.document);
-		console.log('Original history array:', messyHistoryArray);
+		// console.log('Original history array:', messyHistoryArray);
 		// Stimulate spacing around brackets/parentheses for easier parsing.
 		const formattedHistoryArray: string[] = fixBadHistoryFormatting(messyHistoryArray);
-		console.log('Formatted history array:', formattedHistoryArray);
+		// console.log('Formatted history array:', formattedHistoryArray);
 		// Parse history array into an object.
 		const historyObject = historyToObject(formattedHistoryArray);
-		console.log('COMPLETE SCHEMA:', historyObject);
+		// console.log('COMPLETE SCHEMA:', historyObject);
 		// Clean up the history object.
 		historyObject.typedSchema = isolateCursor(historyObject.typedSchema);
-		console.log('ISOLATED SCHEMA:', historyObject);
+		// console.log('ISOLATED SCHEMA:', historyObject);
 		// Create suggestions based off of the history and schema.
 		const suggestions = getSuggestions(historyObject, schema, queryEntry);
-		console.log('SUGGESTIONS:', suggestions);
+		// console.log('SUGGESTIONS:', suggestions);
 		
 		// Dispose of the old suggestion.
 		if (disposable) disposable.dispose();
@@ -192,8 +193,28 @@ export async function activate(context: vscode.ExtensionContext) {
 		// - Create TypeScript types for all these functions
 
 	});
-};
 
+	/**
+	 * Event listener logic to reprocess the schema parser upon config file updates
+	 */
+	const configUpdateListener = vscode.workspace.onDidSaveTextDocument((document) => {
+		vscode.workspace.findFiles('**/surfql.config.json', '**/node_modules/**', 1).then(async ([ uri ]: vscode.Uri[]) => {
+			// Exit early when no config file was found.
+			if (!uri) return;
+			// Because the config file was updated - the schema should be reprocessed
+			// and the global state should be updated.
+			if (document.fileName === uri.fsPath) {
+				// Parse schema files that are referenced in the config file.
+				const configResult = await configToSchema();
+				if (configResult) { // If it didn't error out in the process then assign the global values
+					[ queryEntry, schema, schemaPaths, enumArr ] = configResult;
+					enumObj = enumToObj(enumArr);
+				}
+			}
+		});
+	});
+	context.subscriptions.push(configUpdateListener);
+};
 
 
 //Initial preview html content

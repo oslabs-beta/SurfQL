@@ -140,21 +140,3 @@ export async function generateConfigFile(): Promise<void> {
 		}
 	});
 }
-
-/**
- * Event listener logic to reprocess the schema parser upon config file updates
- * @returns A disposable that should be subscribed
- */
-export function configListener(): Disposable {
-  return workspace.onDidSaveTextDocument((document) => {
-    workspace.findFiles('**/surfql.config.json', '**/node_modules/**', 1).then(([ uri ]: Uri[]) => {
-      // Exit early when no config file was found.
-      if (!uri) return;
-      // Because the config file was updated - the schema should be reprocessed.
-      if (document.fileName === uri.fsPath) {
-        console.log('Updated');
-        configToSchema();
-      }
-    });
-  });
-}
