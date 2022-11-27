@@ -45,10 +45,10 @@ const buildArgSnippet = (key: string, argArr: Array<any>) => {
 };
 
 /**
-		 * Converts a history array to a history object.
-		 * @param historyArray Any array of strings representing a valid query
-		 * @returns A nested object that resembles the document's query
-		 */
+ * Converts a history array to a history object.
+ * @param historyArray Any array of strings representing a valid query
+ * @returns A nested object that resembles the document's query
+ */
 export function historyToObject(historyArray: string[]) {
     const historyObj: any = { typedSchema: {} };
     let newHistory = [...historyArray];
