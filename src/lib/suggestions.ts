@@ -31,21 +31,22 @@ export function offerSuggestions(branch: SchemaType, currentLine: string): Compl
 const completionText = (currentLine: string, text: string): SnippetString => {
   const openBraceIndex = currentLine.lastIndexOf('{');
   const closeBraceIndex = currentLine.lastIndexOf('}');
-  console.log(openBraceIndex, closeBraceIndex);
+  const newIndent = openBraceIndex !== -1
+    && (openBraceIndex < closeBraceIndex);
   
-  return (openBraceIndex < closeBraceIndex)
+  return (newIndent)
     ? new SnippetString('\n' + indentation + text + '${0}' + '\n')
     : new SnippetString(text + '${0}');
-}
+};
 
-//TODO Iteration, snippet with $1, $2
 const buildArgSnippet = (key: string, argArr: Array<any>) => {
     let text = `${key}(`;
+    let selectionIndex = 1; // The index used to tab between autofilled sections to manually change
     argArr.forEach((e,i) => {
         if (e.defaultValue) {
-            text += `${e.argName}: ${e.defaultValue}`;
+            text += `${e.argName}: \${${selectionIndex++}:${e.defaultValue}}`;
         } else {
-            text += `${e.argName}: ${e.inputType}`;
+            text += `${e.argName}: \${${selectionIndex++}:${e.inputType}}`;
         }
         if (i < argArr.length -1) {
             text += ', ';
