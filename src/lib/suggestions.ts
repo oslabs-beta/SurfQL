@@ -8,15 +8,16 @@ import { Schema, QueryEntry, SchemaType } from './models';
  * @param branch Passes in current branch 
  * @returns VSCode suggestions 
  */
-export function offerSuggestions(branch: SchemaType): CompletionItem[] {
+export function offerSuggestions(branch: SchemaType, currentLine: string): CompletionItem[] {
+    
     let suggestions: CompletionItem[] = [];
     for (const key in branch) {
         let tempCompItem = new CompletionItem(`${key}: Option returned type here`, CompletionItemKind.Keyword); // What is displayed
         if (branch[key].arguments) {
             const insertText = buildArgSnippet(key, branch[key].arguments);
-            tempCompItem.insertText = new SnippetString(insertText + '${0}');
+            tempCompItem.insertText = completionText(currentLine, insertText);
         } else {
-            tempCompItem.insertText = new SnippetString(key + '${0}'); // What is added
+            tempCompItem.insertText = completionText(currentLine, key); // What is added
         }
         // tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
         //TRY to do popup
@@ -27,14 +28,25 @@ export function offerSuggestions(branch: SchemaType): CompletionItem[] {
     return suggestions;
 }
 
-//TODO Iteration, snippet with $1, $2
+const completionText = (currentLine: string, text: string): SnippetString => {
+  const openBraceIndex = currentLine.lastIndexOf('{');
+  const closeBraceIndex = currentLine.lastIndexOf('}');
+  const newIndent = openBraceIndex !== -1
+    && (openBraceIndex < closeBraceIndex);
+  
+  return (newIndent)
+    ? new SnippetString('\n' + indentation + text + '${0}' + '\n')
+    : new SnippetString(text + '${0}');
+};
+
 const buildArgSnippet = (key: string, argArr: Array<any>) => {
     let text = `${key}(`;
+    let selectionIndex = 1; // The index used to tab between autofilled sections to manually change
     argArr.forEach((e,i) => {
         if (e.defaultValue) {
-            text += `${e.argName}: ${e.defaultValue}`;
+            text += `${e.argName}: \${${selectionIndex++}:${e.defaultValue}}`;
         } else {
-            text += `${e.argName}: ${e.inputType}`;
+            text += `${e.argName}: \${${selectionIndex++}:${e.inputType}}`;
         }
         if (i < argArr.length -1) {
             text += ', ';
@@ -74,7 +86,6 @@ export function historyToObject(historyArray: string[]) {
     traverseHistory(collapse(newHistory, '{', '}').inners, historyObj.typedSchema, historyObj);
 
     // Return the history object that was constructed from the history array.
-    console.log(historyObj);
     return historyObj;
 }
 
