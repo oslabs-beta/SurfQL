@@ -153,6 +153,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 		const cursorY: number = e.contentChanges[0].range.start.line; // Line number
 		const cursorX: number = e.contentChanges[0].range.start.character; // Column
+		const currLine: string = e.document.lineAt(cursorY).text;
 		// Trying to test what data can inform us in how to format the auto complete
 		// - Add a new line (before and after) (and indent) or not?
 		// console.log('\n\nrow', cursorY, 'column', cursorX);
@@ -181,7 +182,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			'javascript',
 			{
 				provideCompletionItems() {		
-					return offerSuggestions(suggestions) as vscode.CompletionItem[];
+					return offerSuggestions(suggestions, currLine) as vscode.CompletionItem[];
 				}
 			},
 			'\n'

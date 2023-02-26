@@ -8,15 +8,16 @@ import { Schema, QueryEntry, SchemaType } from './models';
  * @param branch Passes in current branch 
  * @returns VSCode suggestions 
  */
-export function offerSuggestions(branch: SchemaType): CompletionItem[] {
+export function offerSuggestions(branch: SchemaType, currentLine: string): CompletionItem[] {
+    
     let suggestions: CompletionItem[] = [];
     for (const key in branch) {
         let tempCompItem = new CompletionItem(`${key}: Option returned type here`, CompletionItemKind.Keyword); // What is displayed
         if (branch[key].arguments) {
             const insertText = buildArgSnippet(key, branch[key].arguments);
-            tempCompItem.insertText = new SnippetString(insertText + '${0}');
+            tempCompItem.insertText = completionText(currentLine, insertText);
         } else {
-            tempCompItem.insertText = new SnippetString(key + '${0}'); // What is added
+            tempCompItem.insertText = completionText(currentLine, key); // What is added
         }
         // tempCompItem.command = { command: 'surfql.levelChecker', title: 'Re-trigger completions...', arguments: [e] };
         //TRY to do popup
@@ -25,6 +26,16 @@ export function offerSuggestions(branch: SchemaType): CompletionItem[] {
         suggestions.push(tempCompItem);
     }
     return suggestions;
+}
+
+const completionText = (currentLine: string, text: string): SnippetString => {
+  const openBraceIndex = currentLine.lastIndexOf('{');
+  const closeBraceIndex = currentLine.lastIndexOf('}');
+  console.log(openBraceIndex, closeBraceIndex);
+  
+  return (openBraceIndex < closeBraceIndex)
+    ? new SnippetString('\n' + indentation + text + '${0}' + '\n')
+    : new SnippetString(text + '${0}');
 }
 
 //TODO Iteration, snippet with $1, $2
@@ -74,7 +85,6 @@ export function historyToObject(historyArray: string[]) {
     traverseHistory(collapse(newHistory, '{', '}').inners, historyObj.typedSchema, historyObj);
 
     // Return the history object that was constructed from the history array.
-    console.log(historyObj);
     return historyObj;
 }
 
