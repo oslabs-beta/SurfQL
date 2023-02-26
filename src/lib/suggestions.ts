@@ -74,6 +74,7 @@ export function historyToObject(historyArray: string[]) {
     traverseHistory(collapse(newHistory, '{', '}').inners, historyObj.typedSchema, historyObj);
 
     // Return the history object that was constructed from the history array.
+    console.log(historyObj);
     return historyObj;
 }
 

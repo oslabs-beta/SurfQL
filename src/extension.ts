@@ -124,7 +124,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	const hoverProvider: vscode.Disposable = vscode.languages.registerHoverProvider(
 		'javascript', 
 		{
-        	provideHover(document, position, token) {
+      provideHover(document, position, token) {
 				const range = document.getWordRangeAtPosition(position);
 				const word = document.getText(range);
 				if (enumObj[word]) {
@@ -161,7 +161,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		// console.log('Change had new line:', e.contentChanges[0].text.includes('\n'));
 
 		// Parse the document's current query into an array.
-		const messyHistoryArray = parseDocumentQuery(cursorY, cursorX, e.document);
+		const messyHistoryArray: string[] = parseDocumentQuery(cursorY, cursorX, e.document);
 		// console.log('Original history array:', messyHistoryArray);
 		// Stimulate spacing around brackets/parentheses for easier parsing.
 		const formattedHistoryArray: string[] = fixBadHistoryFormatting(messyHistoryArray);
