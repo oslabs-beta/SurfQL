@@ -144,7 +144,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	vscode.workspace.onDidChangeTextDocument((e) => {
 		// Exit early when no schema has been loaded.
 		if (!schema) {
-			console.log('Ignoring updates: No schema loaded');
+			console.log('Ignoring text events: No schema loaded');
 			return;
 		}
 
@@ -154,12 +154,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		const cursorY: number = e.contentChanges[0].range.start.line; // Line number
 		const cursorX: number = e.contentChanges[0].range.start.character; // Column
 		const currLine: string = e.document.lineAt(cursorY).text;
-		// Trying to test what data can inform us in how to format the auto complete
-		// - Add a new line (before and after) (and indent) or not?
-		// console.log('\n\nrow', cursorY, 'column', cursorX);
-		// console.log('Current line:', e.document.lineAt(cursorY).text);
-		// console.log('Changes:', e.contentChanges.map(x => x.text));
-		// console.log('Change had new line:', e.contentChanges[0].text.includes('\n'));
 
 		// Parse the document's current query into an array.
 		const messyHistoryArray: string[] = parseDocumentQuery(cursorY, cursorX, e.document);

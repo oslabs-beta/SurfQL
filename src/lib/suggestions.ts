@@ -184,8 +184,9 @@ function traverseHistory(historyRef: string[], obj: any, entireHistoryObj: any):
         let next = history[i + 1];
         let newObj: string | any = {};
 
-        // The current word is just a message that this cursor is at this level.
+        // The cursor is at this level.
         if (current === '🐭') {
+            // TODO: Invoke a helper function here that looks to the left and right to see if the cursor 🐭 is within parens (params). I think we would need to also keep track of the word before the opening paren as well as the rest of the contents (besides the 🐭). What to do with this data? I'm not sure yet. I guess just set `obj._paramSuggestion = true` and then when the schema is aligned with the history object later it can work that out to generate accurate param suggestions from the schema?
             entireHistoryObj.cursor = obj; // TODO: Remove this? Quick access to the cursor object has never been leveraged.
             obj._cursor = true; // ⭐️ Signify that the cursor was found at this level
             continue; // Increment i and iterate the loop
@@ -260,7 +261,7 @@ export function getSuggestions(history: any, schema: any, queryEntry: any) {
         }
     }
 
-    // Exit early when there is no anchor point
+    // Exit early when there is no entry point (operator)
     const entryPoint = queryEntry[history.operator];
     if (!entryPoint) {
         console.log('Invalid query entry. Check the schema for entry points.');
