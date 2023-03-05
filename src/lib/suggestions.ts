@@ -229,7 +229,8 @@ export function isolateCursor(history) {
     if (history._cursor) {
         // Flattens other side paths
         return Object.entries(history).reduce((obj, [key, value]) => {
-            if (typeof value === 'object') obj[key] = 'Field';
+            if (key === '_args') obj[key] = value;
+            else if (typeof value === 'object') obj[key] = 'Field';
             else if (key === '_cursor') obj[key] = true;
             else obj[key] = 'Scalar';
             return obj;
