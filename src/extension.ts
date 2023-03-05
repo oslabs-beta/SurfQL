@@ -9,7 +9,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import parser from "./parser";
 import { offerSuggestions, parseDocumentQuery, fixBadHistoryFormatting,
-	historyToObject, isolateCursor, getSuggestions } from "./lib/suggestions";
+	historyToObject, isolateCursor, getSuggestions, detectDelete } from "./lib/suggestions";
 import { configToSchema, generateConfigFile } from './lib/config';
 import { Schema, QueryEntry } from './lib/models';
 
@@ -147,13 +147,23 @@ export async function activate(context: vscode.ExtensionContext) {
 			console.log('Ignoring text events: No schema loaded');
 			return;
 		}
+		const activeEditor = vscode.window.activeTextEditor;
+		// Exit early when no editor is active.
+		if (!activeEditor) {
+			console.log('Ignoring text events: No text editor open');
+			return;
+		}
 
 		// Dispose of the old suggestion.
 		if (disposable) disposable.dispose();
 
-		const cursorY: number = e.contentChanges[0].range.start.line; // Line number
-		const cursorX: number = e.contentChanges[0].range.start.character; // Column
+		const cursorPosition = activeEditor.selection.active;
+		const cursorY: number = cursorPosition.line;
+		let cursorX: number = cursorPosition.character;
 		const currLine: string = e.document.lineAt(cursorY).text;
+
+		// Fixes the cursor position with backspaces
+		if (detectDelete(e)) cursorX -= 2;
 
 		// Parse the document's current query into an array.
 		const messyHistoryArray: string[] = parseDocumentQuery(cursorY, cursorX, e.document);

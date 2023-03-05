@@ -1,5 +1,5 @@
 /* eslint-disable curly */
-import { CompletionItem, CompletionItemKind, SnippetString, TextDocument, MarkdownString } from 'vscode';
+import { CompletionItem, CompletionItemKind, SnippetString, TextDocument, TextDocumentChangeEvent, MarkdownString } from 'vscode';
 import { indentation } from '../constants';
 import { Schema, QueryEntry, SchemaType } from './models';
 
@@ -442,4 +442,24 @@ export function fixBadHistoryFormatting(messyHistory: string[]): string[] {
         }
         return relevant; // Return the total words so far
     }, [] as string[]);
+}
+
+/**
+ * Uses the document change event to detect new text
+ * @param e The event from the document change event listener
+ * @return The last text updates to the document
+ */
+function textUpdates(e: TextDocumentChangeEvent): string {
+    const lastChange = e.contentChanges[e.contentChanges.length - 1];
+    return lastChange.text;
+}
+
+/**
+ * Determines if the last document change was a deletion
+ * @param e The event from the document change event listener
+ * @returns Whether the last document update was a deletion
+ */
+export function detectDelete(e: TextDocumentChangeEvent): boolean {
+    // When the text update is an empty string that signifies that the last operation performed on the document was a deletion.
+    return textUpdates(e) === '';
 }
