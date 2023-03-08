@@ -46,3 +46,21 @@ li {
 a {
   color: #5fefd0;
 }
+
+.btn-selected {
+  border: 1px solid #6c757d;
+  animation: color-change 1s infinite !important;
+}
+
+/* Live recording icon effect */
+@keyframes color-change {
+  0% {
+    color: #5fefd0;
+  }
+  50% {
+    color: #282828;
+  }
+  100% {
+    color: #5fefd0;
+  }
+}

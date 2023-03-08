@@ -31,6 +31,8 @@ export async function activate(context: vscode.ExtensionContext) {
 	if (configResult) { // If it didn't error out in the process then assign the global values
 		[ queryEntry, schema, schemaPaths, enumArr ] = configResult;
 		enumObj = enumToObj(enumArr);
+		console.log('queryEntry');
+		console.log(queryEntry);
 	}
 
 	// Automatically generate a config file template.
@@ -96,7 +98,7 @@ export async function activate(context: vscode.ExtensionContext) {
 					scriptSrc.toString(),
 					styleSrc.toString(),
 					logoScr.toString()
-      			);
+      	);
 
 				//add event listener to webview
 				panel.webview.onDidReceiveMessage((message) => {
@@ -176,7 +178,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		// console.log('COMPLETE SCHEMA:', historyObject);
 		// Clean up the history object.
 		historyObject.typedSchema = isolateCursor(historyObject.typedSchema);
-		// console.log('ISOLATED SCHEMA:', historyObject);
+		console.log('ISOLATED SCHEMA:', historyObject);
 		// Create suggestions based off of the history and schema.
 		const suggestions = getSuggestions(historyObject, schema, queryEntry);
 		// console.log('SUGGESTIONS:', suggestions);
@@ -251,6 +253,7 @@ const getWebViewContent = (scriptSrc: String, styleSrc: String, logoSrc: String)
 							<img src="${logoSrc}" alt="#" width="40" height="40">
 							<h2>Schema Hierarchy</h2>
 							<button type="button" id='refresh' class="btn btn-secondary" style='color: #5fefd0'>Refresh</button>
+							<button type="button" id='follow-code' class="btn btn-outline-secondary" style='color: #919da8'>Track</button>
 						</div>
 						<div id='board'></div>
 					</body>

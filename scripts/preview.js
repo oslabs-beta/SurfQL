@@ -1,3 +1,6 @@
+// Global Memory
+let followCode = false;
+
 //document on load
 document.addEventListener("DOMContentLoaded", () => {
   //get board element
@@ -9,10 +12,24 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
   getSchematext();
+
+  // Refresh button functionality
   const refreshBtn = document.querySelector("#refresh");
   refreshBtn.addEventListener("click", (e) => {
     board.innerHTML = "";
     getSchematext();
+  });
+
+  // Live update button functionality
+  const liveUpdateBtn = document.querySelector("#follow-code");
+  liveUpdateBtn.addEventListener('click', (e) => {
+    // Invert functionality and appearance
+    followCode = !followCode;
+    liveUpdateBtn.classList.toggle('btn-selected');
+    liveUpdateBtn.innerText =
+      followCode 
+        ? '●'
+        : 'Track';
   });
 });
 
@@ -262,4 +279,73 @@ function btnBasic(btn) {
   btn.setAttribute("data-bs-toggle", "tooltip");
   btn.setAttribute("data-bs-placement", "right");
   btn.setAttribute("data-bs-trigger", "hover");
+}
+
+/**
+ * Opens the schema to view the type in the given path
+ * @param {Array} schemaPath 
+ */
+function openTo(schemaPath) {
+  // Navigate inside the correct entry point (query/mutation)
+  let currentElement = null; // The current element that is aligned with the schema path
+  let schemaPathIndex = 0; // How deeply nested are we within schemaPath
+  const operation = schemaPath.shift();
+  const entryPoints = board.children[0].querySelectorAll('li');
+  for (const entryPoint of entryPoints) {
+    // Check `li` elements to find a match
+    if (entryPoint.children[0].innerText === operation) {
+      entryPoint.children[0].click();
+      currentElement = entryPoint.querySelector('ul');
+      break;
+    }
+  }
+
+  // No matching entry point operation was found: Stop here
+  if (!currentElement) {
+    throw new Error('Could not find entry point');
+  }
+
+  // Navigate to the correct leaf node
+  /* HTML structure (if properly rendered via clicks):
+    <ul class="fieldGroup">
+      <li class="fieldType-alt"> (repeated for each field)
+        Contents are either:
+          - Nothing (just innerText) if it's a scalar node
+          - <a class="notleaf"> fieldName: Type </a>
+            <ul clas="fieldGroup">
+              (repeat)
+            </ul>
+      </li>
+    </ul>
+  */
+  for (let i = 0; i < currentElement.children.length && schemaPath[schemaPathIndex]; i++) {
+    const element = currentElement.children[i]; // `li` element
+
+    // Handle leaf nodes (scalar types)
+    if (element.children.length === 0) {
+      const fieldName = element.innerText.slice(0, element.innerText.indexOf(':'));
+      // Compare the field name to the schema path
+      if (fieldName === schemaPath[schemaPathIndex]) {
+        schemaPathIndex++; // Not needed but here for clarity
+        break; // Completed the traversal
+      } else {
+        continue; // Not a match, continue to next element
+      }
+    }
+
+    // Handle field types (nested)
+    const textContext = element.children[0].innerText;
+    const fieldName = textContext.slice(0, textContext.indexOf(':'));
+    // Compare the field name to the schema path
+    if (fieldName === schemaPath[schemaPathIndex]) {
+      element.children[0].click(); // Render the children (build the tree)
+      currentElement = element.children[1]; // Reassign to the `ul` element
+      schemaPathIndex++; // Look for the next field in the schema path
+      i = -1; // Reset index for next search
+    }
+  }
+
+  // Scroll to the element and have it at the top of the webview
+  currentElement.parentNode.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+
 }
