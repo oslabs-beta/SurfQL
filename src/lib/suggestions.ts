@@ -1,5 +1,5 @@
 /* eslint-disable curly */
-import { CompletionItem, CompletionItemKind, SnippetString, TextDocument, MarkdownString } from 'vscode';
+import { CompletionItem, CompletionItemKind, SnippetString, TextDocument, TextDocumentChangeEvent, MarkdownString } from 'vscode';
 import { indentation } from '../constants';
 import { Schema, QueryEntry, SchemaType } from './models';
 
@@ -184,8 +184,9 @@ function traverseHistory(historyRef: string[], obj: any, entireHistoryObj: any):
         let next = history[i + 1];
         let newObj: string | any = {};
 
-        // The current word is just a message that this cursor is at this level.
+        // The cursor is at this level.
         if (current === '🐭') {
+            // TODO: Invoke a helper function here that looks to the left and right to see if the cursor 🐭 is within parens (params). I think we would need to also keep track of the word before the opening paren as well as the rest of the contents (besides the 🐭). What to do with this data? I'm not sure yet. I guess just set `obj._paramSuggestion = true` and then when the schema is aligned with the history object later it can work that out to generate accurate param suggestions from the schema?
             entireHistoryObj.cursor = obj; // TODO: Remove this? Quick access to the cursor object has never been leveraged.
             obj._cursor = true; // ⭐️ Signify that the cursor was found at this level
             continue; // Increment i and iterate the loop
@@ -228,7 +229,8 @@ export function isolateCursor(history) {
     if (history._cursor) {
         // Flattens other side paths
         return Object.entries(history).reduce((obj, [key, value]) => {
-            if (typeof value === 'object') obj[key] = 'Field';
+            if (key === '_args') obj[key] = value;
+            else if (typeof value === 'object') obj[key] = 'Field';
             else if (key === '_cursor') obj[key] = true;
             else obj[key] = 'Scalar';
             return obj;
@@ -260,7 +262,7 @@ export function getSuggestions(history: any, schema: any, queryEntry: any) {
         }
     }
 
-    // Exit early when there is no anchor point
+    // Exit early when there is no entry point (operator)
     const entryPoint = queryEntry[history.operator];
     if (!entryPoint) {
         console.log('Invalid query entry. Check the schema for entry points.');
@@ -440,4 +442,24 @@ export function fixBadHistoryFormatting(messyHistory: string[]): string[] {
         }
         return relevant; // Return the total words so far
     }, [] as string[]);
+}
+
+/**
+ * Uses the document change event to detect new text
+ * @param e The event from the document change event listener
+ * @return The last text updates to the document
+ */
+function textUpdates(e: TextDocumentChangeEvent): string {
+    const lastChange = e.contentChanges[e.contentChanges.length - 1];
+    return lastChange.text;
+}
+
+/**
+ * Determines if the last document change was a deletion
+ * @param e The event from the document change event listener
+ * @returns Whether the last document update was a deletion
+ */
+export function detectDelete(e: TextDocumentChangeEvent): boolean {
+    // When the text update is an empty string that signifies that the last operation performed on the document was a deletion.
+    return textUpdates(e) === '';
 }
