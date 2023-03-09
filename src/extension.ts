@@ -8,8 +8,11 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import parser from "./parser";
-import { offerSuggestions, parseDocumentQuery, fixBadHistoryFormatting,
-	historyToObject, isolateCursor, getSuggestions, detectDelete } from "./lib/suggestions";
+import {
+	offerSuggestions, parseDocumentQuery, fixBadHistoryFormatting,
+	historyToObject, isolateCursor, getSuggestions,
+	detectDelete, isolatedArraysFromObject
+} from "./lib/suggestions";
 import { configToSchema, generateConfigFile } from './lib/config';
 import { Schema, QueryEntry } from './lib/models';
 
@@ -18,6 +21,7 @@ let queryEntry: QueryEntry;
 let schemaPaths: string[] = [];
 let enumArr: Array<any> = [];
 let enumObj: any = {};
+const webViewPanels: vscode.WebviewPanel[] = [];
 
 let disposable: vscode.Disposable;
 
@@ -96,10 +100,11 @@ export async function activate(context: vscode.ExtensionContext) {
 					scriptSrc.toString(),
 					styleSrc.toString(),
 					logoScr.toString()
-      			);
+      	);
 
-				//add event listener to webview
+				// Add event listener to the webview panel
 				panel.webview.onDidReceiveMessage((message) => {
+					// Load the schema structure into the visualizer
 					if (message.command === "get schema text") {
 						let schemaText = fs.readFileSync(schemaPath, "utf8");
 						const [objectArr, queryMutation, enumArr, inputArr, scalarArr, unionArr] = parser(schemaText);
@@ -110,12 +115,13 @@ export async function activate(context: vscode.ExtensionContext) {
 							text: JSON.stringify([objectArr, queryMutation, enumArr, inputArr, scalarArr, unionArr]),
 						});
 					}
-					// console.log('the schema is', schema);
 					return;
 				});
+
+				// Push the panel to the array of panels
+				webViewPanels.push(panel);
 			}
     }
-	
   );
 	
 	// Register command functionality to the user's VS Code application.
@@ -194,6 +200,15 @@ export async function activate(context: vscode.ExtensionContext) {
 		// Subscribe them to be popped up as suggestions.
 		context.subscriptions.push(disposable);
 
+		// Update the visualizer to follow the current schema.
+		const historyData = isolatedArraysFromObject(historyObject) as [string[], string[]];
+		for (const panel of webViewPanels) {
+			panel.webview.postMessage({
+				command: 'followCode',
+				text: JSON.stringify(historyData)
+			});
+		}
+
 		// TODO:
 		// - Add cursor detection within args to auto suggest args instead of fields
 		// - Create TypeScript types for all these functions
@@ -251,6 +266,7 @@ const getWebViewContent = (scriptSrc: String, styleSrc: String, logoSrc: String)
 							<img src="${logoSrc}" alt="#" width="40" height="40">
 							<h2>Schema Hierarchy</h2>
 							<button type="button" id='refresh' class="btn btn-secondary" style='color: #5fefd0'>Refresh</button>
+							<button type="button" id='follow-code' class="btn btn-outline-secondary" style='color: #919da8'>Track</button>
 						</div>
 						<div id='board'></div>
 					</body>

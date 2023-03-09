@@ -353,10 +353,32 @@ function filterOutUsedFields(history: any, schema: any) {
     messyHistory.push('🐭');
     // Find the end of the query.
     messyHistory = findBackTick(messyHistory, 1, 1000, document, cursorY, cursorX);
+    // Merge the words between the mouse and move it after.
+    mouseInjectionFix(messyHistory);
     // Filter out the empty strings from the query array.
-    messyHistory = messyHistory.filter((str) => str); 
+    messyHistory = messyHistory.filter((str) => str);
     // Return
     return messyHistory;
+}
+
+/**
+ * Merges the words between the mouse and relocates the mouse position to the next index. The remaining index is removed.
+ * @param messyHistory The current history that will be appended to.
+ */
+function mouseInjectionFix(messyHistory: string[]) {
+for (let i = 0; i < messyHistory.length; i++) {
+    if (messyHistory[i] === '🐭') {
+        // Only merge if there is a word before and after the mouse.
+        if ((messyHistory[i - 1] !== '{' &&
+            messyHistory[i + 1] !== '}') &&
+            messyHistory[i + 1] !== ' ') {
+                // Merge
+                messyHistory[i - 1] = messyHistory[i - 1] + messyHistory[i + 1];
+                // Remove the next index location
+                messyHistory.splice(i + 1, 1);
+            }
+    }
+}
 }
 
 /**
@@ -462,4 +484,30 @@ function textUpdates(e: TextDocumentChangeEvent): string {
 export function detectDelete(e: TextDocumentChangeEvent): boolean {
     // When the text update is an empty string that signifies that the last operation performed on the document was a deletion.
     return textUpdates(e) === '';
+}
+
+/**
+ * Flattens the history object into an array of strings.
+ * @param historyObject An object representing a schema being typed in the user's document.
+ * @returns [historyArray, typedFields]
+ */
+export function isolatedArraysFromObject(historyObject: any): [string[], string[]] {
+  const historyArray: string[] = [];
+  // This is the entry point
+  historyArray.push(historyObject.operator);
+  // Recurse through the rest
+  const traverse = (obj: any) => {
+    // When you hit the end return the fields that have already been typed on the same nested level.
+    if (obj._cursor) {
+      return Object
+        .keys(obj)
+        .filter(([firstChar]) => firstChar !== '_') as string[];
+    }
+    const nextTraversal: string = Object.keys(obj)[0];
+    historyArray.push(nextTraversal);
+    return traverse(obj[nextTraversal]);
+  };
+  const typedFields: string[] = traverse(historyObject.typedSchema);
+  // Complete
+  return [historyArray, typedFields];
 }
