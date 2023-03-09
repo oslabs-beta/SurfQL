@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
     liveUpdateBtn.classList.toggle('btn-selected');
     liveUpdateBtn.innerText =
       followCode 
-        ? '●'
+        ? '' // Will switch between: ⏺(default) and ⏹(hover) via CSS
         : 'Track';
   });
 });
@@ -36,15 +36,15 @@ document.addEventListener("DOMContentLoaded", () => {
 //add eventListener to the window
 window.addEventListener("message", (event) => {
   const message = event.data;
-  // console.log("message2", event);
-  const text = message.text;
   //call parser
   if (message.command === "sendSchemaInfo") {
-    // const [schemaArr, returnObj] = parser(text);
     const [schemaArr, queryMutation, enumArr, inputArr, scalarArr, unionArr] =
       JSON.parse(message.text);
     draw(queryMutation, schemaArr, enumArr, inputArr, scalarArr, unionArr);
     return;
+  } else if (message.command === "followCode" && followCode) {
+    const [historyArray, typedFields] = JSON.parse(message.text);
+    openTo(historyArray, typedFields);
   }
 });
 
@@ -283,9 +283,12 @@ function btnBasic(btn) {
 
 /**
  * Opens the schema to view the type in the given path
- * @param {Array} schemaPath 
+ * @param {string[]} schemaPath
+ * @param {string[]} typedFields
  */
-function openTo(schemaPath) {
+function openTo(schemaPath, typedFields) {
+  console.log('schemaPath', schemaPath);
+  console.log('typedFields', typedFields);
   // Navigate inside the correct entry point (query/mutation)
   let currentElement = null; // The current element that is aligned with the schema path
   let schemaPathIndex = 0; // How deeply nested are we within schemaPath
@@ -294,7 +297,10 @@ function openTo(schemaPath) {
   for (const entryPoint of entryPoints) {
     // Check `li` elements to find a match
     if (entryPoint.children[0].innerText === operation) {
-      entryPoint.children[0].click();
+      // Only click if the children are hidden
+      if (entryPoint.children[1].hidden) {
+        entryPoint.children[0].click();
+      }
       currentElement = entryPoint.querySelector('ul');
       break;
     }
@@ -305,7 +311,6 @@ function openTo(schemaPath) {
     throw new Error('Could not find entry point');
   }
 
-  // Navigate to the correct leaf node
   /* HTML structure (if properly rendered via clicks):
     <ul class="fieldGroup">
       <li class="fieldType-alt"> (repeated for each field)
@@ -318,6 +323,7 @@ function openTo(schemaPath) {
       </li>
     </ul>
   */
+  // Navigate to the correct leaf node
   for (let i = 0; i < currentElement.children.length && schemaPath[schemaPathIndex]; i++) {
     const element = currentElement.children[i]; // `li` element
 
@@ -338,10 +344,27 @@ function openTo(schemaPath) {
     const fieldName = textContext.slice(0, textContext.indexOf(':'));
     // Compare the field name to the schema path
     if (fieldName === schemaPath[schemaPathIndex]) {
-      element.children[0].click(); // Render the children (build the tree)
+      // Only click if the children are not already rendered
+      if (!element.children[1] || element.children[1].hidden) {
+        element.children[0].click(); // Render the children (build the tree)
+      }
       currentElement = element.children[1]; // Reassign to the `ul` element
       schemaPathIndex++; // Look for the next field in the schema path
       i = -1; // Reset index for next search
+    }
+  }
+
+  // Style completed fields differently
+  for (let i = 0; i < currentElement.children.length; i++) {
+    const element = currentElement.children[i]; // `li` element
+    const textContext = element.children[0]
+      ? element.children[0].innerText
+      : element.innerText;
+    const fieldName = textContext.slice(0, textContext.indexOf(':'));
+    if (typedFields.includes(fieldName)) {
+      element.classList.add('typedField');
+    } else {
+      element.classList.remove('typedField');
     }
   }
 

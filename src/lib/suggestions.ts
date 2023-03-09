@@ -463,3 +463,29 @@ export function detectDelete(e: TextDocumentChangeEvent): boolean {
     // When the text update is an empty string that signifies that the last operation performed on the document was a deletion.
     return textUpdates(e) === '';
 }
+
+/**
+ * Flattens the history object into an array of strings.
+ * @param historyObject An object representing a schema being typed in the user's document.
+ * @returns [historyArray, typedFields]
+ */
+export function isolatedArraysFromObject(historyObject: any): [string[], string[]] {
+  const historyArray: string[] = [];
+  // This is the entry point
+  historyArray.push(historyObject.operator);
+  // Recurse through the rest
+  const traverse = (obj: any) => {
+    // When you hit the end return the fields that have already been typed on the same nested level.
+    if (obj._cursor) {
+      return Object
+        .keys(obj)
+        .filter(([firstChar]) => firstChar !== '_') as string[];
+    }
+    const nextTraversal: string = Object.keys(obj)[0];
+    historyArray.push(nextTraversal);
+    return traverse(obj[nextTraversal]);
+  };
+  const typedFields: string[] = traverse(historyObject.typedSchema);
+  // Complete
+  return [historyArray, typedFields];
+}
