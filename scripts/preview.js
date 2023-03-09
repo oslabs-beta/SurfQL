@@ -287,7 +287,6 @@ function btnBasic(btn) {
  * @param {string[]} typedFields
  */
 function openTo(schemaPath, typedFields) {
-  // TODO: Close open elements that are located at the target location
   // Navigate inside the correct entry point (query/mutation)
   let currentElement = null; // The current element that is aligned with the schema path
   let schemaPathIndex = 0; // How deeply nested are we within schemaPath
@@ -364,6 +363,11 @@ function openTo(schemaPath, typedFields) {
       element.classList.add('typedField');
     } else {
       element.classList.remove('typedField');
+    }
+
+    // Close all open fields when at deepest level
+    if (element.children[1]) {
+      element.children[1].hidden = true;
     }
   }
 
