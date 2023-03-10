@@ -218,7 +218,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		}
 
 		// TODO:
-		//! Depending on the file type, ignore comments (prevent them from breaking document-query-parsing).
+		// - Establish a linter (air bnb?)
 		// - Add cursor detection within args to auto suggest args instead of fields
 		// - Create TypeScript types for all these functions
 
