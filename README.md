@@ -43,14 +43,14 @@ Referencing
   </li>
 </ul>
 
-## Supports
-#### Parsing GraphQL Type Schemas:
-- File types: [".graphql", ".graphqls", ".ts", ".js"]
-- If your file containing the types is not listed, please open up an [issue](https://github.com/oslabs-beta/SurfQL/issues)
+## Supported File Types
+### GraphQL Schema Definition Files
+- Supported file types: `.graphql`, `.graphqls`, `.ts`, `.js`
+- To request support for additional file types, please create an [issue](https://github.com/oslabs-beta/SurfQL/issues)
 
-#### Autocomplete Suggestions:
-- File types: [".js", ".jsx", ".ts", ".tsx"]
-- If your file constructing the query is not listed, please open up an [issue](https://github.com/oslabs-beta/SurfQL/issues)
+### Autocomplete Suggestions
+- Supported file types: `.js`, `.jsx`, `.ts`, `.tsx`
+- To request support for additional file types, please create an [issue](https://github.com/oslabs-beta/SurfQL/issues)
 
 ## Extension Settings
 
