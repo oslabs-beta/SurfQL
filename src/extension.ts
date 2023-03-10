@@ -25,6 +25,7 @@ let enumObj: any = {};
 const webViewPanels: vscode.WebviewPanel[] = [];
 
 let disposable: vscode.Disposable;
+const showSchemaLoaded = statusMessageLimiter("Schema loaded");
 
 // This function will only be executed when the extension is activated.
 export async function activate(context: vscode.ExtensionContext) {
@@ -36,6 +37,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	if (configResult) { // If it didn't error out in the process then assign the global values
 		[ queryEntry, schema, schemaPaths, enumArr ] = configResult;
 		enumObj = enumToObj(enumArr);
+		
+		// Display that the schema has been loaded.
+		showSchemaLoaded("Schema loaded");
 	}
 
 	// Automatically generate a config file template.
@@ -115,6 +119,9 @@ export async function activate(context: vscode.ExtensionContext) {
 							command: "sendSchemaInfo",
 							text: JSON.stringify([objectArr, queryMutation, enumArr, inputArr, scalarArr, unionArr]),
 						});
+						
+						// Display that the schema has been loaded.
+						showSchemaLoaded("Schema loaded");
 					}
 					return;
 				});
@@ -232,6 +239,9 @@ export async function activate(context: vscode.ExtensionContext) {
 				if (configResult) { // If it didn't error out in the process then assign the global values
 					[ queryEntry, schema, schemaPaths, enumArr ] = configResult;
 					enumObj = enumToObj(enumArr);
+
+					// Display that the schema has been loaded.
+					showSchemaLoaded("Schema loaded");
 				}
 			}
 		});
@@ -295,4 +305,35 @@ export function arrToObj(arr: Array<any>) {
 		result[el.name] = el.fields;
 	});
 	return result;
+}
+
+/**
+ * A higher order function that prevents the same status bar item from being shown multiple times
+ * @param message The message to be displayed in the status bar at the bottom of the VSCode window
+ * @param duration The duration in milliseconds for which the status bar item should be shown
+ * @returns A function that will show the status bar item if it's not already shown
+ */
+function statusMessageLimiter(message: string, duration: number = 5000): Function {
+	// Create a new status bar item
+	const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
+
+	// Set the text of the status bar item
+	statusBarItem.text = message;
+
+	let isStatusBarItemShown = false;
+	
+	// Only show the status bar item if it's not already shown
+  return (): void => {
+    if (!isStatusBarItemShown) {
+      // Show the status bar item
+      statusBarItem.show();
+      isStatusBarItemShown = true;
+
+      // Hide the status bar item after the specified timeout
+      setTimeout(() => {
+        statusBarItem.hide();
+        isStatusBarItemShown = false;
+      }, duration);
+    }
+  };
 }

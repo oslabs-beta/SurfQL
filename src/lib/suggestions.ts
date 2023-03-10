@@ -416,26 +416,12 @@ function findBackTick(history: string[], direction: 1 | -1, limit: number, docum
         }
     };
 
-    
-    // TODO: Add further language support for comments (php, python, etc...)
-    let insideMultiLineComment: boolean = false;
-    const singleLineCommentsRegex: RegExp = /^\s*(\/\/.*)\s*$/; // Example: const fruit = banana; // Set the fruit to be a banana
-    const partialLineCommentsRegex: RegExp = /^.*(\/\*.*\*\/).*$/; // Example: const fruit = /* name of fruit: */ banana;
-    const startMultiLineCommentsRegex = (reverse: boolean): RegExp => reverse
-        ? /^.*(\*\/.*).*$/
-        : /^.*(\/\*.*).*$/; // Example: const fruit = banana; \/* Start of multi-line comment
+    const commentRegex: RegExp = /^\s*(\/\/.*)\s*$/; // Example: query { # This query will return all the users
     // Helper function to remove commented code.
     const removeComments = () => {
-        if (singleLineCommentsRegex.test(line)) { // Single-line comment
+        if (commentRegex.test(line)) {
             // Ignore the comment portion of the line.
-            line = line.slice(0, line.indexOf('//'));
-        } else if (partialLineCommentsRegex.test(line)) { // Partial-line comment
-            // Ignore the comment portion of the line.
-            line = line.slice(0, line.indexOf('/*'))
-                + line.slice(line.indexOf('*/') + 2);
-        } else if (startMultiLineCommentsRegex(reverse).test(line)) { // Start of multi-line comment (with no end)
-            insideMultiLineComment = true;
-            line = line.slice(0, line.indexOf('/*'));
+            line = line.slice(0, line.indexOf('#') - 1);
         }
     };
     
@@ -459,19 +445,6 @@ function findBackTick(history: string[], direction: 1 | -1, limit: number, docum
         if (line.length > limit) {
             console.log('Line has over', limit, 'characters. Limit reached for parsing.');
             return [];
-        }
-
-        // While we are within a multi-line comment, ignore everything until the end of the comment is reached.
-        if (insideMultiLineComment) {
-            // Check to see if the multi-line comment has ended.
-            if ((reverse && /\/\*/.test(line)) || (!reverse && /\*\//.test(line))) {
-                insideMultiLineComment = false;
-                // Ignore everything before the end of the comment then proceed to parse the rest (if any).
-                line = line.slice(line.indexOf('*/') + 2);
-            } else { // Still inside the comment
-                updateLine();
-                continue; // Continue to the next line
-            }
         }
 
         // Remove commented code.
