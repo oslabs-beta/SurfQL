@@ -184,7 +184,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		// console.log('Original history array:', messyHistoryArray);
 		// Stimulate spacing around brackets/parentheses for easier parsing.
 		const formattedHistoryArray: string[] = fixBadHistoryFormatting(messyHistoryArray);
-		console.log('Formatted history array:', formattedHistoryArray);
+		// console.log('Formatted history array:', formattedHistoryArray);
 		// Parse history array into an object.
 		const historyObject = historyToObject(formattedHistoryArray);
 		// console.log('COMPLETE SCHEMA:', historyObject);
@@ -218,6 +218,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		}
 
 		// TODO:
+		// - Clean up this file (move functions to separate files)!
 		// - Establish a linter (air bnb?)
 		// - Add cursor detection within args to auto suggest args instead of fields
 		// - Create TypeScript types for all these functions
