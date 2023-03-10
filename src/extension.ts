@@ -189,7 +189,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		
 		// Create the CompletionItems.
 		disposable = vscode.languages.registerCompletionItemProvider(
-			'javascript',
+			['javascript', 'typescript', 'javascriptreact', 'typescriptreact'],
 			{
 				provideCompletionItems() {		
 					return offerSuggestions(suggestions, currLine) as vscode.CompletionItem[];
@@ -211,7 +211,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
 		// TODO:
 		//! Depending on the file type, ignore comments (prevent them from breaking document-query-parsing).
-		//! Open up the apollo-playground repo when debugging the extension.
 		// - Add cursor detection within args to auto suggest args instead of fields
 		// - Create TypeScript types for all these functions
 

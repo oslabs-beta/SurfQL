@@ -43,6 +43,15 @@ Referencing
   </li>
 </ul>
 
+## Supports
+#### Parsing GraphQL Type Schemas:
+- File types: [".graphql", ".graphqls", ".ts", ".js"]
+- If your file containing the types is not listed, please open up an [issue](https://github.com/oslabs-beta/SurfQL/issues)
+
+#### Autocomplete Suggestions:
+- File types: [".js", ".jsx", ".ts", ".tsx"]
+- If your file constructing the query is not listed, please open up an [issue](https://github.com/oslabs-beta/SurfQL/issues)
+
 ## Extension Settings
 
 Make sure to include a configuration file named `surfql.config.json`

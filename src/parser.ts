@@ -325,6 +325,5 @@ export default function parser(text: string) {
     };
   });
 
-  console.log(root, queryMutation, enumArr, inputArr, scalarArr, unionArr);
   return [root, queryMutation, enumArr, inputArr, scalarArr, unionArr];
 };
