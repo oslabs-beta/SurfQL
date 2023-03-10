@@ -8,7 +8,9 @@ export const primatives = [
 export const supportedSchemaParserFileTypes = ["graphql", "graphqls", "ts", "js"];
 
 //! When adding new language support:
-// - Add a new comment pattern for the respective language ids in `./lib/suggestions` -> `findBackTick()`
+// - Update `./lib/suggestions` -> `parseDocumentQuery()`
+//   to look for the associated language id's multi-line
+//   string character(s) and comment characters.
 export const supportedSuggestionFileTypeIds = ['javascript', 'typescript', 'javascriptreact', 'typescriptreact'];
 
 /* 🌊 Terms 🧠 */

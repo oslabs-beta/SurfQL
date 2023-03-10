@@ -177,7 +177,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		// console.log('Original history array:', messyHistoryArray);
 		// Stimulate spacing around brackets/parentheses for easier parsing.
 		const formattedHistoryArray: string[] = fixBadHistoryFormatting(messyHistoryArray);
-		// console.log('Formatted history array:', formattedHistoryArray);
+		console.log('Formatted history array:', formattedHistoryArray);
 		// Parse history array into an object.
 		const historyObject = historyToObject(formattedHistoryArray);
 		// console.log('COMPLETE SCHEMA:', historyObject);
