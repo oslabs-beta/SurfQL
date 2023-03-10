@@ -15,6 +15,7 @@ import {
 } from "./lib/suggestions";
 import { configToSchema, generateConfigFile } from './lib/config';
 import { Schema, QueryEntry } from './lib/models';
+import { supportedSuggestionFileTypeIds, supportedSchemaParserFileTypes } from './constants';
 
 let schema: Schema;
 let queryEntry: QueryEntry;
@@ -54,7 +55,7 @@ export async function activate(context: vscode.ExtensionContext) {
 					canSelectMany: false,
 					openLabel: "Open",
 					filters: {
-						"graphqlsFiles": ["graphql", "graphqls", "ts", "js"],
+						"graphqlsFiles": supportedSchemaParserFileTypes,
 					},
 				};
 
@@ -128,7 +129,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(previewSchemaCommand, configCommand);
 
 	const hoverProvider: vscode.Disposable = vscode.languages.registerHoverProvider(
-		'javascript', 
+		supportedSuggestionFileTypeIds, 
 		{
       provideHover(document, position, token) {
 				const range = document.getWordRangeAtPosition(position);
@@ -189,7 +190,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		
 		// Create the CompletionItems.
 		disposable = vscode.languages.registerCompletionItemProvider(
-			['javascript', 'typescript', 'javascriptreact', 'typescriptreact'],
+			supportedSuggestionFileTypeIds,
 			{
 				provideCompletionItems() {		
 					return offerSuggestions(suggestions, currLine) as vscode.CompletionItem[];

@@ -5,6 +5,12 @@ export const primatives = [
   'ID'
 ];
 
+export const supportedSchemaParserFileTypes = ["graphql", "graphqls", "ts", "js"];
+
+//! When adding new language support:
+// - Add a new comment pattern for the respective language ids in `./lib/suggestions` -> `findBackTick()`
+export const supportedSuggestionFileTypeIds = ['javascript', 'typescript', 'javascriptreact', 'typescriptreact'];
+
 /* 🌊 Terms 🧠 */
 // Query Operations - "query" or "mutation" keywords at the start of a query.
 // Query Field - The term for the property/key on the query. Ex: "name" or "id"

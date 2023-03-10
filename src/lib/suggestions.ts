@@ -398,12 +398,14 @@ function findBackTick(history: string[], direction: 1 | -1, limit: number, docum
     // - Ignore everything before/after the cursor
     line = (direction === -1) ? line.slice(0, cursorLocation + 1) : line.slice(cursorLocation + 1);
     
-    // Create an array of words (and occasional characters such as: '{')
+    // Ignore the line if it's within a multi-line comment.
+    let insideComment = false;
+    // Create an array of words / characters found in queries.
     // Iterate through the lines of the file (starting from the cursor moving up the file)
     while (lineNumber >= 0 && newHistory.length <= limit) {
         // When the start of the query was found: This is the last loop
         if (line.includes('`')) {
-            lineNumber = -2; // Set line number to -2 to end the loop (-1 doesn't work)
+            lineNumber = -2; // Set line number to -2 to end the loop (-1 doesn't work and we still want to continue the rest of this logic)
             // Slice at the backtick
             const backTickIndex = line.indexOf('`');
             // The slice will depend on the 'direction' parameter.
