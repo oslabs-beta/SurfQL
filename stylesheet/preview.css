@@ -79,6 +79,31 @@ a {
     color: #5fefd0;
   }
 }
+/* TODO: Replace the above code with this .svg technique */
+/* .btn-selected::before {
+  content: url('path/to/file.svg');
+  display: inline-block;
+  width: 16px; adjust to match the size of your SVG
+  height: 16px; adjust to match the size of your SVG
+  margin-right: 5px; optional, adjust as needed
+  fill: currentColor; sets the fill color of the SVG to match the text color
+  animation-name: color-change;
+  animation-duration: 2s;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+} */
+
+@keyframes color-change {
+  0% {
+    color: #5fefd0;
+  }
+  50% {
+    color: #282828;
+  }
+  100% {
+    color: #5fefd0;
+  }
+}
 
 .typedField {
   color: rgb(144, 151, 142) !important;

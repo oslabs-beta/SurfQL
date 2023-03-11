@@ -347,6 +347,7 @@ function filterOutUsedFields(history: any, schema: any) {
  * @return Words/symbols from the start of the query to the cursor.
  */
  export function parseDocumentQuery(cursorY: number, cursorX: number, document: TextDocument): string[] {
+    // TODO: Update from backtick to a dynamic query start/end character depending on the language. (So far only JS is supported.)
     // Find the start of the query.
     let messyHistory: string[] = findBackTick([], -1, 1000, document, cursorY, cursorX).reverse();
     // Indicate the cursor (mouse) location.
@@ -394,36 +395,15 @@ for (let i = 0; i < messyHistory.length; i++) {
 function findBackTick(history: string[], direction: 1 | -1, limit: number, document: TextDocument, lineNumber: number, cursorLocation: number): string[] {
     const newHistory = [];
     let line: string = document.lineAt(lineNumber).text;
+    const reverse: boolean = direction === -1;
     // The slice will depend on the 'direction' parameter.
     // - Ignore everything before/after the cursor
-    line = (direction === -1) ? line.slice(0, cursorLocation + 1) : line.slice(cursorLocation + 1);
-    
-    // Create an array of words (and occasional characters such as: '{')
-    // Iterate through the lines of the file (starting from the cursor moving up the file)
-    while (lineNumber >= 0 && newHistory.length <= limit) {
-        // When the start of the query was found: This is the last loop
-        if (line.includes('`')) {
-            lineNumber = -2; // Set line number to -2 to end the loop (-1 doesn't work)
-            // Slice at the backtick
-            const backTickIndex = line.indexOf('`');
-            // The slice will depend on the 'direction' parameter.
-            // - Ignore everything before/after the back tick
-            line = (direction === -1) ? line.slice(backTickIndex + 1) : line.slice(0, backTickIndex);
-        }
+    line = reverse
+        ? line.slice(0, cursorLocation + 1)
+        : line.slice(cursorLocation + 1);
 
-        // Detect if the file is compressed into a one-line file.
-        // Exit early if the line is 1000+ characters (the limit).
-        if (line.length > limit) {
-            console.log('Line has over', limit, 'characters. Limit reached for parsing.');
-            return [];
-        }
-
-        // Divide the line (string) into an array of words.
-        const arrayOfWords = line.split(/\s+/g);
-        // Depending on the direction, reverse the array.
-        if (direction === -1) arrayOfWords.reverse();
-        // Append the array of words to the new history.
-        newHistory.push(...arrayOfWords);
+    // Helper function to update the line number and line.
+    const updateLine = () => {
         // Increment in the correct direction
         lineNumber += direction;
         if (lineNumber >= 0) {
@@ -434,10 +414,57 @@ function findBackTick(history: string[], direction: 1 | -1, limit: number, docum
                 return [];
             }
         }
+    };
+
+    const commentRegex: RegExp = /^\s*(\/\/.*)\s*$/; // Example: query { # This query will return all the users
+    // Helper function to remove commented code.
+    const removeComments = () => {
+        if (commentRegex.test(line)) {
+            // Ignore the comment portion of the line.
+            line = line.slice(0, line.indexOf('#') - 1);
+        }
+    };
+    
+    // Create an array of words / characters found in queries.
+    // Iterate through the lines of the file (starting from the cursor moving up the file)
+    while (lineNumber >= 0 && newHistory.length <= limit) {
+        // When the start of the query was found: This is the last loop
+        if (line.includes('`')) {
+            lineNumber = -2; // Set line number to -2 to end the loop (-1 doesn't work and we still want to continue the rest of this logic)
+            // Slice at the backtick
+            const backTickIndex = line.indexOf('`');
+            // The slice will depend on the 'direction' parameter.
+            // - Ignore everything before/after the back tick
+            line = reverse
+                ? line.slice(backTickIndex + 1)
+                : line.slice(0, backTickIndex);
+        }
+
+        // Detect if the file is compressed into a one-line file.
+        // Exit early if the line is 1000+ characters (the limit).
+        if (line.length > limit) {
+            console.log('Line has over', limit, 'characters. Limit reached for parsing.');
+            return [];
+        }
+
+        // Remove commented code.
+        removeComments();
+
+        // Parse the line:
+        // Divide the line (string) into an array of words.
+        const arrayOfWords = line.split(/\s+/g);
+        // Depending on the direction, reverse the array.
+        if (reverse) arrayOfWords.reverse();
+        // Append the array of words to the new history.
+        newHistory.push(...arrayOfWords);
+        // Continue to the next line
+        updateLine();
     }
 
     // The appending location will depend on the 'direction' parameter.
-    return (direction === -1) ? [...newHistory, ...history] : [...history, ...newHistory];
+    return reverse
+        ? [...newHistory, ...history]
+        : [...history, ...newHistory];
 }
 
 /**

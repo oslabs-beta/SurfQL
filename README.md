@@ -43,6 +43,15 @@ Referencing
   </li>
 </ul>
 
+## Supported File Types
+### GraphQL Schema Definition Files
+- Supported file types: `.graphql`, `.graphqls`, `.ts`, `.js`
+- To request support for additional file types, please create an [issue](https://github.com/oslabs-beta/SurfQL/issues)
+
+### Autocomplete Suggestions
+- Supported file types: `.js`, `.jsx`, `.ts`, `.tsx`
+- To request support for additional file types, please create an [issue](https://github.com/oslabs-beta/SurfQL/issues)
+
 ## Extension Settings
 
 Make sure to include a configuration file named `surfql.config.json`
