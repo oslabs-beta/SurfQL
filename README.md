@@ -14,7 +14,12 @@ Code Auto-completion
 2. Once installed, the first time you open your project, follow the pop-up message to create a surfql.config.json file.
 3. Click the Q logo that appears on your side bar, and click on the View Schemas Button to initiate the visualizer. It will open a webView panel with your visualization of the schema hierarchy. If you don't have a config file, you can also mannually select your schema file following the pop-up file selector manually.
 (Currently SurfQL supports parsing schema files written with Apollo Server library. Support for more libraries is under development.)
-4. Beyond visualization: Back to your project, once you begin building up your query in your project file, SurfQL will begin parsing your query and suggesting the available fields to complete your query. 
+4. Beyond visualization: Back to your project, once you begin building up your query in your project file, SurfQL will begin parsing your query and suggesting the available fields to complete your query.
+5. To experiment with SurfQL, we recommend using our playground environment. [Check it out here](https://github.com/surfql/apollo-playgrounds)!
+6. Happy surfing! If you encounter any issues or have suggestions for improving SurfQL, please submit an issue on our GitHub repository.
+
+#### Test out the extension with our pre-built playgrounds
+https://github.com/surfql/apollo-playgrounds
 
 
 ## Built With
